@@ -13,7 +13,7 @@ import utils.my_functions as fu
 from data.procesamiento import preprocessing
 
 from utils.metrics import metric
-from model.ShaftFormer import ShaftFormer
+from model.TransformerModel import ShaftFormer
 
 
 class transformerModel(nn.Module):
@@ -83,7 +83,7 @@ class transformerModel(nn.Module):
 
     def test(self, x_loader:DataLoader, criterion, last_loss):
         self.model.eval()
-        self.model.model.module.eval()
+        if self.args.use_multi_gpu and self.args.use_gpu: self.model.model.module.eval()
         
         total_loss = []
         
@@ -107,7 +107,7 @@ class transformerModel(nn.Module):
                 self.plot_signals(pred, trues, name='validationResults')
 
         self.model.train()
-        self.model.model.module.train()
+        if self.args.use_multi_gpu and self.args.use_gpu: self.model.model.module.train()
         return total_loss
 
     def trainloop(self):

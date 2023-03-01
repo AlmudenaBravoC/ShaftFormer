@@ -6,7 +6,7 @@ from utils.myTools import dotdict
 import numpy as np
 
 from model.cnn_embeding import context_embedding, PositionalEmbedding
-from model.model_layers import TransformerEncoderLayer, TransformerEncoder, TransformerDecoder, TransformerDecoderLayer
+from model.model_layers import TransformerEncoderLayer, TransformerEncoder
 
 
 class ShaftFormer(nn.Module):
@@ -28,8 +28,6 @@ class ShaftFormer(nn.Module):
         encoder = TransformerEncoder(encoder_layer, num_layers=self.args.nencoder)
 
         ## DECODER
-        decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
-        decoder = TransformerDecoder(decoder_layer, self.args.ndecoder)
         if args.two_linear and args.conf_cnn:
             self.linear = torch.nn.Linear(args.outchannels, self.args.outchannels-self.args.outchannels_conf)
             self.linear2 = torch.nn.Linear(self.args.outchannels-self.args.outchannels_conf, args.inchannels)
@@ -66,20 +64,20 @@ class ShaftFormer(nn.Module):
     
     def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
 
-        # if test: 
-        #     self.device = torch.device("cpu")
-        #     self.model.to(self.device)
-        #     self.linear.to(self.device)
-        #     if self.args.two_linear: self.linear2.to(self.device)
-        #     self.conv1.to(self.device)
-        #     if self.args.conf_cnn: self.conv2.to(self.device)
-        #     self.deconv.to(self.device)
+        if test: 
+            self.device = torch.device("cpu")
+            self.model.to(self.device)
+            self.linear.to(self.device)
+            if self.args.two_linear: self.linear2.to(self.device)
+            self.conv1.to(self.device)
+            if self.args.conf_cnn: self.conv2.to(self.device)
+            self.deconv.to(self.device)
 
         x = x.to(self.device)
         feat = feat.to(self.device)
         z = x.unsqueeze(1)
         #output and input = [sequence len, embedding size, batch]
-        #we want the output to be --> [sequence len, batch, embedding size]
+            #we want the output to be --> [sequence len, batch, embedding size]
         z_embedding = self.conv1(z).permute(0,2,1)
         # positional = self.position_embedding(x)
 

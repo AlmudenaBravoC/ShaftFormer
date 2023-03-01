@@ -24,6 +24,8 @@ if args.linear_initialization == 'Uniform':
     args.a = -0.1
     args.b = 0.1
 
+args.model_type = "forecasting" #['classification', 'forecasting']
+
 args.use_gpu = True if torch.cuda.is_available() else False
 args.gpu = 0
 args.use_multi_gpu = True
