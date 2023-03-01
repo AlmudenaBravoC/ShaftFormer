@@ -3,7 +3,7 @@ import copy
 
 import torch
 from torch import Tensor
-from torch.nn import Dropout, LayerNorm, MultiheadAttention, Linear, ModuleList, Module
+from torch.nn import Dropout, ModuleList, Module
 from torch.nn import functional as F
 import torch.nn as nn
 
@@ -51,30 +51,6 @@ class TransformerEncoder(Module):
         return output
 
 
-class TransformerDecoder(Module):
-    __constants__ = ['norm']
-
-    def __init__(self, decoder_layer, num_layers, norm=None):
-        super(TransformerDecoder, self).__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
-        self.num_layers = num_layers
-        self.norm = norm
-    
-    def forward(self, tgt: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None,
-                memory_mask: Optional[Tensor] = None, tgt_key_padding_mask: Optional[Tensor] = None,
-                memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
-        output = tgt
-
-        for mod in self.layers:
-            output = mod(output, memory, tgt_mask=tgt_mask,
-                         memory_mask=memory_mask,
-                         tgt_key_padding_mask=tgt_key_padding_mask,
-                         memory_key_padding_mask=memory_key_padding_mask)
-
-        if self.norm is not None:
-            output = self.norm(output)
-
-        return output
 
 #%% LAYERS
 class TransformerEncoderLayer(Module):
@@ -144,14 +120,6 @@ class TransformerEncoderLayer(Module):
         return x
     
     #self attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           need_weights=False)[0]
-        return self.dropout1(x)
-
     def sa_informer(self, x:Tensor):
         try :
             x_n, attn = self.attn(x, x, x, attn_mask=None)
@@ -163,12 +131,6 @@ class TransformerEncoderLayer(Module):
         y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
         y = self.dropout(self.conv2(y).transpose(-1,1))
         return self.norm_enc2(x+y)
-
-
-    # feed forward block
-    def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        return self.dropout2(x)
 
     def conv_informer(self, x:Tensor):
         x = self.downConv(x.permute(0,2,1)) # --> [len, dim, batch]
@@ -191,96 +153,6 @@ class TransformerEncoderLayer(Module):
         return x
 
 
-class TransformerDecoderLayer(Module):
-    __constants__ = ['batch_first', 'norm_first']
-
-    def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
-                 activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
-                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
-                 device=None, dtype=None,
-                 attn='prob', factor =5, output_attention = False) -> None:
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super(TransformerDecoderLayer, self).__init__()
-
-        # Legacy string support for activation function.
-        if isinstance(activation, str):
-            self.activation = _get_activation_fn(activation)
-        else:
-            self.activation = activation
-        
-
-        ## NEW ATTENTION LAYER -- based on the informer
-        Attn = ProbAttention if attn=='prob' else FullAttention
-        self.attn = AttentionLayer(Attn(False, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
-                                d_model, nhead, mix=False, **factory_kwargs)
-        self.attn2 = AttentionLayer(FullAttention(False, factor, attention_dropout=dropout, output_attention=False, **factory_kwargs),
-                                d_model, nhead, mix=False, **factory_kwargs)
-        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_model*4, kernel_size=1, **factory_kwargs)
-        self.conv2 = nn.Conv1d(in_channels=d_model*4, out_channels=d_model, kernel_size=1, **factory_kwargs)
-        self.norm_enc1 = nn.LayerNorm(d_model, **factory_kwargs)
-        self.norm_enc2 = nn.LayerNorm(d_model, **factory_kwargs)
-        self.norm_enc3 = nn.LayerNorm(d_model, **factory_kwargs)
-        self.norm1 = nn.LayerNorm(d_model, **factory_kwargs)
-        self.dropout = Dropout(dropout)
-    
-    def __setstate__(self, state):
-        if 'activation' not in state:
-            state['activation'] = F.relu
-        super(TransformerDecoderLayer, self).__setstate__(state)
-    
-    def forward(self, tgt: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None, memory_mask: Optional[Tensor] = None,
-                tgt_key_padding_mask: Optional[Tensor] = None, memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
-        x = tgt
-
-        x = self.sa_informer(x, memory)
-
-        return x
-
-
-    # self-attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           need_weights=False)[0]
-        return self.dropout1(x)
-
-    def sa_informer(self, x:Tensor, x_enc:Tensor):
-        try :
-            x_n, attn = self.attn(x, x, x, attn_mask=None)
-        except:
-            x_n = self.attn(x, x, x, attn_mask=None)
-        x = x + self.dropout(x_n)
-        x = self.norm_enc1(x)
-
-        #add the full attention layer
-        try:
-            x, attn = self.attn2(x, x_enc, x_enc, attn_mask = None)
-        except:
-            x = self.attn2(x, x_enc, x_enc, attn_mask = None)
-
-        y = x = self.norm_enc2(self.dropout(x))
-        y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
-        y = self.dropout(self.conv2(y).transpose(-1,1))
-        x = self.norm_enc3(x+y)
-
-        return x
-
-    # multihead attention block
-    def _mha_block(self, x: Tensor, mem: Tensor,
-                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-        x = self.multihead_attn(x, mem, mem,
-                                attn_mask=attn_mask,
-                                key_padding_mask=key_padding_mask,
-                                need_weights=False)[0]
-        return self.dropout2(x)
-
-    # feed forward block
-    def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout1(self.activation(self.linear1(x))))
-        return self.dropout3(x)
-    
 
 
 #%% OTHER FUNCTIONS
