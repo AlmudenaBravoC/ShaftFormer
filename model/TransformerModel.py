@@ -45,11 +45,16 @@ class ShaftFormer(nn.Module):
 
 
         ## MODEL
-        self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
-        if self.args.use_multi_gpu and self.args.use_gpu:
-            print('\t Parallelization of the model')
-            self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]
-            self.model = self.model.to(self.device)
+        if self.args.model_type == "forecasting":
+            print("model for forecasting")
+            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            if self.args.use_multi_gpu and self.args.use_gpu:
+                print('\t Parallelization of the model')
+                self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]
+                self.model = self.model.to(self.device)
+        else:
+            print("model for classification")
+            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
         
         if self.args.use_gpu:
             self.linear.to(device)

@@ -36,7 +36,10 @@ class transformerModel(nn.Module):
             raise Exception('Linear initialization method not valid')
         elif args.linear_initialization == 'Uniform' and (args.a >= args.b):
             raise Exception('Not valid values for the uniform initialization')
-
+        
+         ##check values of model_type:
+        if args.model_type not in ['classification', 'forecasting']:
+            raise Exception('Not valid model type')
     
         self.model = ShaftFormer(args=args, device=self.device)
 
