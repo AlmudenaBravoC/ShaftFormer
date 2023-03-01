@@ -46,7 +46,7 @@ class transformerModel(nn.Module):
         Function that predicts the future values given only src. 
         If the future is true, the model will predict values to future using "auto-regressive decoding"  
         """
-        self.model.load_state_dict(torch.load(f'results/{self.args.name_folder}/checkpoint.pth', map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location=torch.device('cpu')))
         # self.model.load_state_dict(torch.load(f'results/{self.args.name_folder}/checkpoint.pth'))
         # self.model = nn.DataParallel(model.to(torch.device('cpu')), device_ids=[int(i) for i in self.args.devices.split(',')])
 
@@ -155,7 +155,7 @@ class transformerModel(nn.Module):
                     epoch + 1, loss_train[epoch], loss_val[epoch]))
 
             if loss_val[epoch] < last_loss:
-                best_model_path = f'results/{self.args.name_folder}/checkpoint.pth'
+                best_model_path = f'./../results/{self.args.name_folder}/checkpoint.pth'
                 if self.args.use_multi_gpu and self.args.use_gpu: 
                     torch.save(self.model.state_dict(), best_model_path)
                     # torch.save(self.model, best_model_path)
@@ -184,8 +184,8 @@ class transformerModel(nn.Module):
                     break
         
         #SAVE THE INFORMATION ABOUT THE LOSS
-        np.save(f'./results/{self.args.name_folder}/loss_train.npy', loss_train)
-        np.save(f'./results/{self.args.name_folder}/loss_val.npy', loss_val)
+        np.save(f'./../results/{self.args.name_folder}/loss_train.npy', loss_train)
+        np.save(f'./../results/{self.args.name_folder}/loss_val.npy', loss_val)
 
         return self.model
 
@@ -212,7 +212,7 @@ class transformerModel(nn.Module):
             if target != None:
                 ax.set_title(target[i].item())
         fig.suptitle(name, fontsize=16)
-        plt.savefig(f'./results/{self.args.name_folder}/{name}.png')
+        plt.savefig(f'./../results/{self.args.name_folder}/{name}.png')
 
     ## JUST IN CASE WE DECIDE TO TRY SEVERAL OF THEM
     def _select_optimizer(self):
@@ -224,10 +224,10 @@ class transformerModel(nn.Module):
         return criterion
 
     def _save_information(self):
-        if not os.path.exists(f'./results/{self.args.name_folder}'):
-            os.makedirs(f'./results/{self.args.name_folder}')
+        if not os.path.exists(f'./../results/{self.args.name_folder}'):
+            os.makedirs(f'./../results/{self.args.name_folder}')
 
-        f = open(f'./results/{self.args.name_folder}/arguments.txt', "w")
+        f = open(f'./../results/{self.args.name_folder}/arguments.txt', "w")
         for a in self.args:
             f.write(f'{a}: {self.args[a]} \n')
         f.close()
@@ -249,7 +249,7 @@ class transformerModel(nn.Module):
             self.idx_tst = range_list[n_train:n_train+n_test]
 
             #save the indexs of the test
-            np.save(f'results/{self.args.name_folder}/test_index.npy', self.idx_tst)
+            np.save(f'./../results/{self.args.name_folder}/test_index.npy', self.idx_tst)
 
             self.split = True
         return
@@ -311,7 +311,7 @@ class transformerModel(nn.Module):
             return tr_loader, val_loader
 
         else:
-            self.idx_tst = np.load(f'results/{self.args.name_folder}/test_index.npy')
+            self.idx_tst = np.load(f'./../results/{self.args.name_folder}/test_index.npy')
             tst = dataT[:, self.idx_tst]
             feat_tst = featuresT[self.idx_tst,:]
             if self.data_args.get_class:
