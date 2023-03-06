@@ -27,49 +27,57 @@ class ShaftFormer(nn.Module):
         encoder_layer = TransformerEncoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
         encoder = TransformerEncoder(encoder_layer, num_layers=self.args.nencoder)
 
-        ## DECODER
-        if args.two_linear and args.conf_cnn:
-            self.linear = torch.nn.Linear(args.outchannels, self.args.outchannels-self.args.outchannels_conf)
-            self.linear2 = torch.nn.Linear(self.args.outchannels-self.args.outchannels_conf, args.inchannels)
-        else:
-            self.linear = torch.nn.Linear(args.outchannels, args.inchannels)
-        
-        self.deconv = context_embedding(in_channels=self.args.outchannels, embedding_size=self.args.inchannels, k=self.args.kernel)
-
-        if args.linear_initialization == 'Xavier':
-            nn.init.xavier_uniform_(self.linear.weight)
-        elif args.linear_initialization == 'He':
-            nn.init.kaiming_uniform_(self.linear.weight, nonlinearity='relu')
-        elif args.linear_initialization == 'Uniform':
-            nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
-
 
         ## MODEL
         if self.args.model_type == "forecasting":
             print("model for forecasting")
+            
+            ## DECODER
+            if args.two_linear and args.conf_cnn:
+                self.linear = torch.nn.Linear(args.outchannels, self.args.outchannels-self.args.outchannels_conf)
+                self.linear2 = torch.nn.Linear(self.args.outchannels-self.args.outchannels_conf, args.inchannels)
+            else:
+                self.linear = torch.nn.Linear(args.outchannels, args.inchannels)
+            
+            self.deconv = context_embedding(in_channels=self.args.outchannels, embedding_size=self.args.inchannels, k=self.args.kernel)
+
+            if args.linear_initialization == 'Xavier':
+                nn.init.xavier_uniform_(self.linear.weight)
+            elif args.linear_initialization == 'He':
+                nn.init.kaiming_uniform_(self.linear.weight, nonlinearity='relu')
+            elif args.linear_initialization == 'Uniform':
+                nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
+
             self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             if self.args.use_multi_gpu and self.args.use_gpu:
                 print('\t Parallelization of the model')
                 self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]
                 self.model = self.model.to(self.device)
+            
+            if self.args.use_gpu:
+                self.linear.to(device)
+                if self.args.two_linear: self.linear2.to(device)
+                self.conv1.to(device)
+                if self.args.conf_cnn: self.conv2.to(device)
+                self.deconv.to(device)
+
         else:
             print("model for classification")
-            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
-        
-        if self.args.use_gpu:
-            self.linear.to(device)
-            if self.args.two_linear: self.linear2.to(device)
-            self.conv1.to(device)
-            if self.args.conf_cnn: self.conv2.to(device)
-            self.deconv.to(device)
-        
+            decoder = nn.Linear(1, 1) #we are not going to use this
+            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels, hidden_dim=64, output_dim=self.args.inchannels)
+
+            transformer = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            self.encoder_transformer = transformer.encoder()
+
+            raise Exception
+    
     
     def forward(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
         return self._process_one_batch(x, feat, target_len, test)
     
     def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
 
-        if test: 
+        if test and self.args.model_type == "forecasting": 
             self.device = torch.device("cpu")
             self.model.to(self.device)
             self.linear.to(self.device)
@@ -113,35 +121,50 @@ class ShaftFormer(nn.Module):
         tgt = tot_emb[len_src:, :, :]
         trues = x[len_src:, :]
 
-        if test:
-            self.model.module.eval()
-            if self.args.use_multi_gpu and self.args.use_gpu: memory = self.model.module.encoder(src)
-            else: memory = self.model.encoder(src)
+        if self.args.model_type == "forecasting":
+            if test:
+                self.model.module.eval()
+                if self.args.use_multi_gpu and self.args.use_gpu: memory = self.model.module.encoder(src)
+                else: memory = self.model.encoder(src)
 
-            out = torch.zeros((tgt.shape[0]-1, tgt.shape[1], tgt.shape[2])) #shape of the output with the same size as the tgt
-            point = tgt[0, :, :] #we use the first
-            out[0, :, :] = point 
-            
-            #we will be doing auto-regressive decoding
-            for i in range(1, out.shape[0]): #for every point in the sequence
-                if self.args.use_multi_gpu and self.args.use_gpu: point = self.model.module.decoder(point.reshape(1, point.shape[0], point.shape[1]), memory) #obtain the next point in the sequence (that we will be using as tgt)
-                else: point = self.model.decoder(point.reshape(1, point.shape[0], point.shape[1]), memory) 
-                point = point.reshape(point.shape[1], point.shape[2]) #[1, 10, 96] --> [10, 96]
-                out[i, :, :] = point
+                out = torch.zeros((tgt.shape[0]-1, tgt.shape[1], tgt.shape[2])) #shape of the output with the same size as the tgt
+                point = tgt[0, :, :] #we use the first
+                out[0, :, :] = point 
+                
+                #we will be doing auto-regressive decoding
+                for i in range(1, out.shape[0]): #for every point in the sequence
+                    if self.args.use_multi_gpu and self.args.use_gpu: point = self.model.module.decoder(point.reshape(1, point.shape[0], point.shape[1]), memory) #obtain the next point in the sequence (that we will be using as tgt)
+                    else: point = self.model.decoder(point.reshape(1, point.shape[0], point.shape[1]), memory) 
+                    point = point.reshape(point.shape[1], point.shape[2]) #[1, 10, 96] --> [10, 96]
+                    out[i, :, :] = point
 
-                if i % 10 ==0: point = tgt[i, :, :] #use the good one
-                if i % 100 == 0:print(i)
+                    if i % 10 ==0: point = tgt[i, :, :] #use the good one
+                    if i % 100 == 0:print(i)
+                
+                self.model.module.train()
             
-            self.model.module.train()
+            else:
+                #we need to shift the tgt one to the right. The model needs to be learn to predict the next point.
+                    #the first of the trues shold be the second of the tgt. 
+                    # all except the last point --> then the trues will be all except the first
+                out = self.model(src,tgt[:-1, :, :])
+
+            out = self.linear(out)
+            if self.args.two_linear: out = self.linear2(out)
+            return out, trues[1:, :]
+
+
+class MLP_simple(nn.Module):
+    def __init__(self, input_dim=96, hidden_dim=64, output_dim=1):
+        super(MLP_simple, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+        self.relu = nn.ReLU()
         
-        else:
-            #we need to shift the tgt one to the right. The model needs to be learn to predict the next point.
-                #the first of the trues shold be the second of the tgt. 
-                # all except the last point --> then the trues will be all except the first
-            out = self.model(src,tgt[:-1, :, :])
-
-        out = self.linear(out)
-        if self.args.two_linear: out = self.linear2(out)
-        return out, trues[1:, :]
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
 
         
