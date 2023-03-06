@@ -24,11 +24,11 @@ if args.linear_initialization == 'Uniform':
     args.a = -0.1
     args.b = 0.1
 
-args.model_type = "forecasting" #['classification', 'forecasting']
+args.model_type = "classification" #['classification', 'forecasting']
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 0
-args.use_multi_gpu = True
+args.gpu = 1
+args.use_multi_gpu = False
 args.devices = '0,1,3'
 
     #embedding signal 
@@ -50,7 +50,7 @@ num_lin = 2 if args.two_linear else 1
 args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
 
 
-train = False
+train = True
 if train:
     seguir = False
     while not seguir:
