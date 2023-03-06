@@ -19,12 +19,15 @@ args.train_epochs = 100 #number of epochs to train the model (a maximum number o
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 args.learning_rate = 0.0001
 args.batch_size = 10
+
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':
     args.a = -0.1
     args.b = 0.1
 
 args.model_type = "classification" #['classification', 'forecasting']
+if args.model_type == 'classification':
+    args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
 args.gpu = 1

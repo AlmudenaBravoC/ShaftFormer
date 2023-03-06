@@ -50,8 +50,6 @@ class transformerModel(nn.Module):
         If the future is true, the model will predict values to future using "auto-regressive decoding"  
         """
         self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location=torch.device('cpu')))
-        # self.model.load_state_dict(torch.load(f'results/{self.args.name_folder}/checkpoint.pth'))
-        # self.model = nn.DataParallel(model.to(torch.device('cpu')), device_ids=[int(i) for i in self.args.devices.split(',')])
 
         self.model.eval()
         self.device = torch.device("cpu")
@@ -120,7 +118,8 @@ class transformerModel(nn.Module):
         tr_loader, val_loader = self._get_data()
 
         model_optim = self._select_optimizer()
-        criterion =  self._select_criterion()
+        if self.args.model_type == "forecasting": criterion =  self._select_criterion()
+        else: criterion =  self._select_criterion(1)
 
         last_loss = np.Inf
         loss_train = []
@@ -141,9 +140,13 @@ class transformerModel(nn.Module):
                 else:
                     tr, feat = tr
                 
-                pred, trues = self.model.forward(x=tr, feat=feat)
+                if self.args.model_type == "forecasting":
+                    pred, trues = self.model.forward(x=tr, feat=feat)
+                    loss = criterion(pred[:,:,0], trues)
+                esle:
+                    pred = self.model.forward(x=tr, feat=feat)
+                    loss = criterion(pred, class_tr)
 
-                loss = criterion(pred[:,:,0], trues)
                 train_loss.append(loss.item())
                 
             
@@ -222,8 +225,9 @@ class transformerModel(nn.Module):
         model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
         return model_optim
     
-    def _select_criterion(self):
-        criterion =  nn.MSELoss()
+    def _select_criterion(self, forecasting = 0):
+        if forecasting == 0: criterion =  nn.MSELoss()
+        elif forecasting == 1: criterion = nn.CrossEntropyLoss()
         return criterion
 
     def _save_information(self):

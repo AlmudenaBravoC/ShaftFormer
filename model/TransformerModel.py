@@ -6,7 +6,7 @@ from utils.myTools import dotdict
 import numpy as np
 
 from model.cnn_embeding import context_embedding, PositionalEmbedding
-from model.model_layers import TransformerEncoderLayer, TransformerEncoder
+from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple
 
 
 class ShaftFormer(nn.Module):
@@ -64,12 +64,10 @@ class ShaftFormer(nn.Module):
         else:
             print("model for classification")
             decoder = nn.Linear(1, 1) #we are not going to use this
-            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels, hidden_dim=64, output_dim=self.args.inchannels)
-
             transformer = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             self.encoder_transformer = transformer.encoder()
 
-            raise Exception
+            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels, hidden_dim=64, output_dim=self.args.num_class)
     
     
     def forward(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
@@ -105,7 +103,7 @@ class ShaftFormer(nn.Module):
             # f = f.to(self.device)
             # f_embedding = self.conv2(f.permute(0,2,1)).permute(0,2,1)
 
-            #feat is [batch, dim] UPDATEE
+            #feat is [batch, dim] 
             f_conv = self.conv2(feat.reshape(feat.shape[0], feat.shape[1], 1)) #we pass the feat through the conv --> [batch, dim(32), 1]
             f = np.repeat(f_conv.cpu().detach().numpy(), len_seq, axis=0) #repeat each configuration and convert to numpy
             f_embedding = f.reshape(len_seq, f_conv.shape[0], f_conv.shape[1]) #obtain the matrix [seq, batch, dim]
@@ -117,11 +115,11 @@ class ShaftFormer(nn.Module):
         else:
             tot_emb = z_embedding
 
-        src = tot_emb[:len_src, :, :]
-        tgt = tot_emb[len_src:, :, :]
-        trues = x[len_src:, :]
-
         if self.args.model_type == "forecasting":
+            src = tot_emb[:len_src, :, :]
+            tgt = tot_emb[len_src:, :, :]
+            trues = x[len_src:, :]
+
             if test:
                 self.model.module.eval()
                 if self.args.use_multi_gpu and self.args.use_gpu: memory = self.model.module.encoder(src)
@@ -152,19 +150,12 @@ class ShaftFormer(nn.Module):
             out = self.linear(out)
             if self.args.two_linear: out = self.linear2(out)
             return out, trues[1:, :]
-
-
-class MLP_simple(nn.Module):
-    def __init__(self, input_dim=96, hidden_dim=64, output_dim=1):
-        super(MLP_simple, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
-        self.relu = nn.ReLU()
         
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
+        else: #classification model
+            memory = self.encoder_transformer(tot_emb)
+            
+            pred_class = self.simple_mlp.forward(memory) #now we use the memory from the encoder in the MLP
+            return pred_class
+
 
         
