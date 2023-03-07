@@ -9,6 +9,8 @@ import os
 import time
 import matplotlib.pyplot as plt
 import random
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 import utils.my_functions as fu
 from data.procesamiento import preprocessing
 
@@ -40,6 +42,8 @@ class transformerModel(nn.Module):
          ##check values of model_type:
         if args.model_type not in ['classification', 'forecasting']:
             raise Exception('Not valid model type')
+        if args.model_type == 'classification' and not data_args.get_class:
+            raise Exception('Get class should be TRUE')
     
         self.model = ShaftFormer(args=args, device=self.device)
 
@@ -87,21 +91,38 @@ class transformerModel(nn.Module):
         if self.args.use_multi_gpu and self.args.use_gpu: self.model.model.module.eval()
         
         total_loss = []
+        trues_cm = []
+        pred_cm =[]
         
         for x in x_loader:
             if self.data_args.get_class:
-                    x, class_t, feat = x
-            pred, tgt = self.model.forward(x=x, feat=feat)
-            loss = criterion(pred.detach().cpu()[:,:,0], tgt.detach().cpu())
+                x, class_t, feat = x
+            
+            if self.args.model_type == "forecasting":
+                pred, tgt = self.model.forward(x=x, feat=feat)
+                loss = criterion(pred.detach().cpu()[:,:,0], tgt.detach().cpu())
+            else:
+                pred_soft = self.model.forward(x=x, feat=feat)
+                class_t = class_t.to(self.device)
+                loss = criterion(pred_soft, class_t)
+
+                trues_cm.extend(class_t.cpu())
+                pred = torch.argmax(pred_soft, dim = 1) #get the max index by row
+                pred_cm.extend(pred.cpu())
+            
 
             total_loss.append(loss)
         total_loss = np.average(total_loss)
 
         if total_loss < last_loss:
-            if self.data_args.get_class:
+            if self.data_args.get_class and self.args.model_type == 'forecasting':
                 x, class_t, feat = next(iter(x_loader))
                 pred, trues = self.model.forward(x=x, feat=feat)
                 self.plot_signals(pred, trues, target=class_t, name='validationResults')
+            elif self.args.model_type == 'classification':
+                    cm = confusion_matrix(trues_cm , pred_cm, cmap=plt.cm.Greens)
+                    ConfusionMatrixDisplay(cm)
+                    plt.savefig(f'./../results/{self.args.name_folder}/cm_validation.png')
             else:
                 x, feat = next(iter(x_loader))
                 pred, trues = self.model.forward(x=x, feat=feat)
@@ -118,8 +139,12 @@ class transformerModel(nn.Module):
         tr_loader, val_loader = self._get_data()
 
         model_optim = self._select_optimizer()
-        if self.args.model_type == "forecasting": criterion =  self._select_criterion()
-        else: criterion =  self._select_criterion(1)
+        if self.args.model_type == "forecasting": 
+            criterion =  self._select_criterion()
+        else: 
+            criterion =  self._select_criterion(1)
+            trues_cm = []
+            pred_cm = []
 
         last_loss = np.Inf
         loss_train = []
@@ -143,9 +168,14 @@ class transformerModel(nn.Module):
                 if self.args.model_type == "forecasting":
                     pred, trues = self.model.forward(x=tr, feat=feat)
                     loss = criterion(pred[:,:,0], trues)
-                esle:
-                    pred = self.model.forward(x=tr, feat=feat)
-                    loss = criterion(pred, class_tr)
+                else:
+                    pred_soft = self.model.forward(x=tr, feat=feat)
+                    class_tr = class_tr.to(self.device)
+                    loss = criterion(pred_soft, class_tr)
+
+                    trues_cm.extend(class_tr.cpu())
+                    pred = torch.argmax(pred_soft, dim = 1) #get the max index by row
+                    pred_cm.extend(pred.cpu())
 
                 train_loss.append(loss.item())
                 
@@ -164,14 +194,17 @@ class transformerModel(nn.Module):
                 best_model_path = f'./../results/{self.args.name_folder}/checkpoint.pth'
                 if self.args.use_multi_gpu and self.args.use_gpu: 
                     torch.save(self.model.state_dict(), best_model_path)
-                    # torch.save(self.model, best_model_path)
                 else: torch.save(self.model.state_dict(), best_model_path)
                 print('Model updated')
 
-                if self.data_args.get_class:
-                    tr, class_tr, feat = next(iter(tr_loader))
-                    pred, trues = self.model.forward(x=tr, feat= feat)
+                if self.data_args.get_class and self.args.model_type == 'forecasting':
+                    # tr, class_tr, feat = next(iter(tr_loader))
+                    # pred, trues = self.model.forward(x=tr, feat= feat)
                     self.plot_signals(pred, trues, target=class_tr)
+                elif self.args.model_type == 'classification':
+                    cm = confusion_matrix(trues_cm , pred_cm, cmap=plt.cm.Greens)
+                    ConfusionMatrixDisplay(cm)
+                    plt.savefig(f'./../results/{self.args.name_folder}/cm_train.png')
                 else:
                     tr, class_tr = next(iter(tr_loader))
                     pred, trues = self.model.forward(x=tr)

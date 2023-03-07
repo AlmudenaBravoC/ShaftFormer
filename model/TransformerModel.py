@@ -57,18 +57,23 @@ class ShaftFormer(nn.Module):
             if self.args.use_gpu:
                 self.linear.to(device)
                 if self.args.two_linear: self.linear2.to(device)
-                self.conv1.to(device)
-                if self.args.conf_cnn: self.conv2.to(device)
                 self.deconv.to(device)
 
         else:
             print("model for classification")
             decoder = nn.Linear(1, 1) #we are not going to use this
             transformer = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
-            self.encoder_transformer = transformer.encoder()
+            self.encoder_transformer = transformer.encoder
 
-            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels, hidden_dim=64, output_dim=self.args.num_class)
-    
+            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels*32, hidden_dim=64, output_dim=self.args.num_class)
+
+            if self.args.use_gpu:
+                self.encoder_transformer.to(self.device)
+                self.simple_mlp.to(self.device)
+        
+        #both models
+        self.conv1.to(device)
+        if self.args.conf_cnn: self.conv2.to(device)
     
     def forward(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
         return self._process_one_batch(x, feat, target_len, test)
@@ -80,9 +85,10 @@ class ShaftFormer(nn.Module):
             self.model.to(self.device)
             self.linear.to(self.device)
             if self.args.two_linear: self.linear2.to(self.device)
+            self.deconv.to(self.device) 
             self.conv1.to(self.device)
             if self.args.conf_cnn: self.conv2.to(self.device)
-            self.deconv.to(self.device)
+            
 
         x = x.to(self.device)
         feat = feat.to(self.device)

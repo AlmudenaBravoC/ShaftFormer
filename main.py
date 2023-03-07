@@ -11,7 +11,7 @@ import ast
 args = dotdict()
 
     #model
-args.heads = 8 #number of heads for the transformer
+args.heads = 3 #number of heads for the transformer
 args.nencoder=6 #number of layers in the encocer
 args.ndecoder= 6 #number of layers in the decoder
 args.dropout = 0.1 #dropout
@@ -46,7 +46,7 @@ args.feature_range = (-3, 3) #if the values are small, the model does not learn 
 args.conf_cnn = True #if false, we do not consider the configurations
 args.two_linear = False #if true we use 2 linear (96 to 32 and then 32 to 1). only if conf_cnn is true
 
-i = 3
+i = 4
 conf_num= 2 if args.conf_cnn else 1
 num_lin = 2 if args.two_linear else 1
 # args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'

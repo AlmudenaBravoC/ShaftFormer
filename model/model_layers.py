@@ -176,6 +176,13 @@ class MLP_simple(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         
     def forward(self, x):
+        # Permute the input tensor to shape [b, s, d]
+        x = x.permute(1, 0, 2)
+        
+        # Flatten the sequence dimension
+        x = x.reshape(x.shape[0], -1)
+        
+        # Apply the MLP layers
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
