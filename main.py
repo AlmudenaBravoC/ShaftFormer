@@ -16,8 +16,9 @@ args.nencoder=6 #number of layers in the encocer
 args.dropout = 0.1 #dropout
 args.train_epochs = 100 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
-args.learning_rate = 0.0001
-args.batch_size = 24
+
+args.learning_rate = 0.0001 
+args.batch_size = 10 #16
 
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':

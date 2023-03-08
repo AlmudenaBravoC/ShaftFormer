@@ -65,7 +65,7 @@ class ShaftFormer(nn.Module):
             transformer = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             self.encoder_transformer = transformer.encoder
 
-            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels*32, hidden_dim=64, output_dim=self.args.num_class)
+            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels*32, output_dim=self.args.num_class)
 
             if self.args.use_gpu:
                 self.encoder_transformer.to(self.device)

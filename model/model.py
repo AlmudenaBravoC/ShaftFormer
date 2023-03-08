@@ -172,8 +172,7 @@ class transformerModel(nn.Module):
                     loss = criterion(pred[:,:,0], trues)
                 else:
                     pred_soft = self.model.forward(x=tr, feat=feat)
-                    class_tr = class_tr.to(self.device)
-                    loss = criterion(pred_soft, class_tr)
+                    loss = criterion(pred_soft, class_tr.to(self.device))
 
                     trues_cm.extend(class_tr.cpu())
                     pred = torch.argmax(pred_soft, dim = 1) #get the max index by row

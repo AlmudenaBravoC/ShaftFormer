@@ -168,10 +168,12 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
 
 class MLP_simple(nn.Module):
-    def __init__(self, input_dim=96, hidden_dim=64, output_dim=1):
+    def __init__(self, input_dim=96, hidden_dim=70, hidden_dim1=50, hidden_dim2=20, output_dim=1):
         super(MLP_simple, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
+        self.h1 = nn.Linear(hidden_dim, hidden_dim1)
+        self.h2 = nn.Linear(hidden_dim1, hidden_dim2)
+        self.fc2 = nn.Linear(hidden_dim2, output_dim)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
         
@@ -184,6 +186,10 @@ class MLP_simple(nn.Module):
         
         # Apply the MLP layers
         x = self.fc1(x)
+        x = self.relu(x)
+        x = self.h1(x)
+        x = self.relu(x)
+        x = self.h2(x)
         x = self.relu(x)
         x = self.fc2(x)
         x = self.softmax(x)
