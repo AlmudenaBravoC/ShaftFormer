@@ -97,21 +97,22 @@ class transformerModel(nn.Module):
         for x in x_loader:
             if self.data_args.get_class:
                 x, class_t, feat = x
+            else:
+                x, feat = x
             
             if self.args.model_type == "forecasting":
                 pred, tgt = self.model.forward(x=x, feat=feat)
                 loss = criterion(pred.detach().cpu()[:,:,0], tgt.detach().cpu())
             else:
                 pred_soft = self.model.forward(x=x, feat=feat)
-                class_t = class_t.to(self.device)
-                loss = criterion(pred_soft, class_t)
+                loss = criterion(pred_soft, class_t.to(self.device))
 
                 trues_cm.extend(class_t.cpu())
                 pred = torch.argmax(pred_soft, dim = 1) #get the max index by row
                 pred_cm.extend(pred.cpu())
             
 
-            total_loss.append(loss)
+            total_loss.append(loss.item())
         total_loss = np.average(total_loss)
 
         if total_loss < last_loss:
@@ -120,8 +121,9 @@ class transformerModel(nn.Module):
                 pred, trues = self.model.forward(x=x, feat=feat)
                 self.plot_signals(pred, trues, target=class_t, name='validationResults')
             elif self.args.model_type == 'classification':
-                    cm = confusion_matrix(trues_cm , pred_cm, cmap=plt.cm.Greens)
-                    ConfusionMatrixDisplay(cm)
+                    cm = confusion_matrix(trues_cm , pred_cm)
+                    disp = ConfusionMatrixDisplay(cm)
+                    disp.plot()
                     plt.savefig(f'./../results/{self.args.name_folder}/cm_validation.png')
             else:
                 x, feat = next(iter(x_loader))
@@ -202,8 +204,9 @@ class transformerModel(nn.Module):
                     # pred, trues = self.model.forward(x=tr, feat= feat)
                     self.plot_signals(pred, trues, target=class_tr)
                 elif self.args.model_type == 'classification':
-                    cm = confusion_matrix(trues_cm , pred_cm, cmap=plt.cm.Greens)
-                    ConfusionMatrixDisplay(cm)
+                    cm = confusion_matrix(trues_cm , pred_cm)
+                    disp = ConfusionMatrixDisplay(cm)
+                    disp.plot()
                     plt.savefig(f'./../results/{self.args.name_folder}/cm_train.png')
                 else:
                     tr, class_tr = next(iter(tr_loader))
