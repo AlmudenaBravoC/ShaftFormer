@@ -127,19 +127,19 @@ class ShaftFormer(nn.Module):
                 tgt = tot_emb[len_src:, :, :]
                 trues = x[len_src:, :]
 
-                attention_mask = self._get_attention_mask(batchsize = tgt.shape[1], targetlen= tgt.shape[0])
+                attention_mask = self._get_attention_mask(batch_size = tgt.shape[1], seq_len= tgt.shape[0]-1)
                 attention_mask = attention_mask.to(self.device)
 
                 #we need to shift the tgt one to the right. The model needs to be learn to predict the next point.
                     #the first of the trues shold be the second of the tgt. 
                     # all except the last point --> then the trues will be all except the first
-                # out = self.model(src,tgt[:-1, :, :])
-                out = self.model(src,torch.roll(tgt, 1, dims=0), tgt_mask= attention_mask)
+                out = self.model(src,tgt[:-1, :, :], tgt_mask= attention_mask)
+                # out = self.model(src,torch.roll(tgt, 1, dims=0), tgt_mask= attention_mask)
     
                 out = self.linear(out)
                 if self.args.two_linear: out = self.linear2(out)
                 
-                return out, trues
+                return out, trues[1:, :]
             
             else: #classification model
                 memory = self.encoder_transformer(tot_emb)
@@ -153,61 +153,43 @@ class ShaftFormer(nn.Module):
             #we need to make a for to process all the values (including the process of the embeddings)
 
             x_src = x[:len_src, :]
-            x_tgt = x[len_src:, :]
+            trues = x[len_src:, :] #future values we want to predict knwoing x_src
 
-            z_src = x_src.unsqueeze(1)
-            z_src_embedding = self.conv1(z_src).permute(0,2,1)
-
+            #conf embedding --> WE ALWAYS HAVE THIS, IS THE INFORMATION OF THE SIGNALS
             f_conv = self.conv2(feat.reshape(feat.shape[0], feat.shape[1], 1)) #we pass the feat through the conv --> [batch, dim(32), 1]
             f = np.repeat(f_conv.cpu().detach().numpy(), len_seq, axis=0) #repeat each configuration and convert to numpy
             f_embedding = f.reshape(len_seq, f_conv.shape[0], f_conv.shape[1]) #obtain the matrix [seq, batch, dim]
             f_embedding = torch.tensor(f_embedding, dtype=torch.float32, requires_grad=True).to(self.device)
 
-            #concat all the embeddings
-            src = torch.cat((z_src_embedding, f_embedding[:len_src, :, :]), dim=2)
-
-            if self.args.use_multi_gpu and self.args.use_gpu: 
-                self.model.module.eval()
-                memory = self.model.module.encoder(src)
-            else: memory = self.model.encoder(src)
-
             #x --> [seq, batch]
-            w = 50 #window size
-            trues = x[len_src:, :]
-            new_x = x_tgt[:w, :]
-            f_tgt = f_embedding[len_src:, :, :] 
-            out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch]
+            out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
+            w=600
             
-            t = x_tgt.shape[0]-w+1
-            t=w
-            for i in range(t): #for every point in the signals
-                if i % 100 == 0: print(i)
+            for i in range(trues.shape[0]): #for every point in the signals
+                z_src = x_src.unsqueeze(1)
+                z_embedding = self.conv1(z_src).permute(0,2,1)
 
-                z = new_x.unsqueeze(1)
-                z_embedding = self.conv1(z).permute(0,2,1)
-                f_ = f_tgt[i:i+w, :, :]  
+                if i % 100 == 0: print(i)  
 
-                point = torch.cat((z_embedding, f_), dim=2)
+                points = torch.cat((z_embedding, f_embedding[:z_embedding.shape[0], :, :]), dim=2)
+                last_point = points[-w:, :, :]
 
-                if self.args.use_multi_gpu and self.args.use_gpu: point = self.model.module.decoder(point, memory) #obtain the next point in the sequence (that we will be using as tgt)
-                else: point = self.model.decoder(point, memory)  #[50, 10, 96] Result will be the next point of every point
+                future_point = self.model(points, last_point)  #[1, 10, 96] Result will be the next point 
+                pred_point = self.linear(future_point) 
+                pred_point = pred_point[-1:, :, :]
 
-                pred_points = self.linear(point) #THIS LINEAR
-                if i != t-1 : out[i, :, :] = pred_points[0, :, :] #save only the first point (rest was only context) -> [seq, batch, dim=1]
-                else: out[i:i+w, :, :] = pred_points
-                
-                new_x = pred_points.view(w,-1)
+                #update the signal to have the new information
+                x_src = torch.cat([x_src, pred_point.view(1, -1)], dim=0)
+                out[i, :, :] = pred_point
             
-            return out[:-1, :, :], trues[1:, :]
+            return out, trues
     
-    def _get_attention_mask(self, batchsize, targetlen):
-        # create a 2D attention mask with shape (seq_len, seq_len)
-        attn_mask_2d = torch.ones(targetlen, targetlen)
+    
+    def _get_attention_mask(self, batch_size, seq_len):
+        # create tensor with shape (batch_size, seq_len, seq_len) initialized with ones
+        attention_mask = torch.ones(batch_size * self.args.heads, seq_len, seq_len)
 
-        # set the upper triangular portion of the attention mask to 0
-        attn_mask_2d = torch.triu(attn_mask_2d, diagonal=1)
+        # set lower triangular part of attention mask to 0
+        attention_mask = torch.tril(attention_mask, diagonal=0)
 
-        # add a batch dimension to the attention mask
-        attn_mask_3d = attn_mask_2d.unsqueeze(0).repeat(batchsize*self.args.heads, 1, 1)
-
-        return attn_mask_3d
+        return attention_mask

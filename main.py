@@ -53,7 +53,7 @@ args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
 # args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
 
 
-train = True
+train = False
 if train:
     seguir = False
     while not seguir:
