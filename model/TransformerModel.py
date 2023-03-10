@@ -127,11 +127,14 @@ class ShaftFormer(nn.Module):
                 tgt = tot_emb[len_src:, :, :]
                 trues = x[len_src:, :]
 
+                attention_mask = self._get_attention_mask(batchsize = tgt.shape[1], targetlen= tgt.shape[0])
+                attention_mask = attention_mask.to(self.device)
+
                 #we need to shift the tgt one to the right. The model needs to be learn to predict the next point.
                     #the first of the trues shold be the second of the tgt. 
                     # all except the last point --> then the trues will be all except the first
                 # out = self.model(src,tgt[:-1, :, :])
-                out = self.model(src,torch.roll(tgt, 1, dims=0))
+                out = self.model(src,torch.roll(tgt, 1, dims=0), tgt_mask= attention_mask)
     
                 out = self.linear(out)
                 if self.args.two_linear: out = self.linear2(out)
@@ -189,10 +192,22 @@ class ShaftFormer(nn.Module):
                 if self.args.use_multi_gpu and self.args.use_gpu: point = self.model.module.decoder(point, memory) #obtain the next point in the sequence (that we will be using as tgt)
                 else: point = self.model.decoder(point, memory)  #[50, 10, 96] Result will be the next point of every point
 
-                pred_points = self.linear(point)
+                pred_points = self.linear(point) #THIS LINEAR
                 if i != t-1 : out[i, :, :] = pred_points[0, :, :] #save only the first point (rest was only context) -> [seq, batch, dim=1]
                 else: out[i:i+w, :, :] = pred_points
                 
                 new_x = pred_points.view(w,-1)
             
             return out[:-1, :, :], trues[1:, :]
+    
+    def _get_attention_mask(self, batchsize, targetlen):
+        # create a 2D attention mask with shape (seq_len, seq_len)
+        attn_mask_2d = torch.ones(targetlen, targetlen)
+
+        # set the upper triangular portion of the attention mask to 0
+        attn_mask_2d = torch.triu(attn_mask_2d, diagonal=1)
+
+        # add a batch dimension to the attention mask
+        attn_mask_3d = attn_mask_2d.unsqueeze(0).repeat(batchsize*self.args.heads, 1, 1)
+
+        return attn_mask_3d

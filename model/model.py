@@ -143,6 +143,7 @@ class transformerModel(nn.Module):
         model_optim = self._select_optimizer()
         if self.args.model_type == "forecasting": 
             criterion =  self._select_criterion()
+
         else: 
             criterion =  self._select_criterion(1)
             trues_cm = []

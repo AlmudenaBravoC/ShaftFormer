@@ -30,7 +30,7 @@ if args.model_type == 'classification':
     args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 1
+args.gpu = 0
 args.use_multi_gpu = False
 args.devices = '0,1,3'
 
@@ -46,14 +46,14 @@ args.feature_range = (-3, 3) #if the values are small, the model does not learn 
 args.conf_cnn = True #if false, we do not consider the configurations
 args.two_linear = False #if true we use 2 linear (96 to 32 and then 32 to 1). only if conf_cnn is true
 
-i = 4
+i = 3
 conf_num= 2 if args.conf_cnn else 1
 num_lin = 2 if args.two_linear else 1
 args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
 # args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
 
 
-train = False
+train = True
 if train:
     seguir = False
     while not seguir:
