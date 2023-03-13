@@ -149,6 +149,7 @@ class ShaftFormer(nn.Module):
 
 
         if test:
+            self.model.eval()
             #we will be doing auto-regressive decoding
             #we need to make a for to process all the values (including the process of the embeddings)
 
@@ -172,9 +173,9 @@ class ShaftFormer(nn.Module):
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
             
-            for i in range(trues.shape[0]): #for every point in the signals
+            for i in range(trues.shape[0]-1): #for every point in the signals
 
-                if i % 100 == 0: print(i)
+                if i % 10 == 0: print(i)
                 
                 z = last_points.unsqueeze(1)
                 z_embedding = self.conv1(z).permute(0,2,1)
@@ -185,10 +186,10 @@ class ShaftFormer(nn.Module):
                 #pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                last_points[1:i+1, :] = pred_point[:i, :, 0]
+                last_points[i+1, :] = pred_point[i, :, 0]
                 out[i, :, :] = pred_point[i, :, :]
             
-            return out, trues
+            return out[:-1, :, :], trues[1:, :]
     
     
     def _get_attention_mask(self, batch_size, seq_len):
