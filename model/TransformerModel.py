@@ -161,26 +161,32 @@ class ShaftFormer(nn.Module):
             f_embedding = f.reshape(len_seq, f_conv.shape[0], f_conv.shape[1]) #obtain the matrix [seq, batch, dim]
             f_embedding = torch.tensor(f_embedding, dtype=torch.float32, requires_grad=True).to(self.device)
 
+            ##SRC
+            z_src = x_src.unsqueeze(1)
+            z_embedding = self.conv1(z_src).permute(0,2,1)
+            points = torch.cat((z_embedding, f_embedding[:z_embedding.shape[0], :, :]), dim=2)
+            last_points = torch.zeros((trues.shape[0], trues.shape[1]))
+            last_points[0, :]  = trues[0, :]
+            memory = self.model.encoder(points)
+
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
-            w=600
             
             for i in range(trues.shape[0]): #for every point in the signals
-                z_src = x_src.unsqueeze(1)
-                z_embedding = self.conv1(z_src).permute(0,2,1)
 
-                if i % 100 == 0: print(i)  
+                if i % 100 == 0: print(i)
+                
+                z = last_points.unsqueeze(1)
+                z_embedding = self.conv1(z).permute(0,2,1)
+                points = torch.cat((z_embedding, f_embedding[len_src:, :, :]), dim=2)
 
-                points = torch.cat((z_embedding, f_embedding[:z_embedding.shape[0], :, :]), dim=2)
-                last_point = points[-w:, :, :]
-
-                future_point = self.model(points, last_point)  #[1, 10, 96] Result will be the next point 
+                future_point = self.model.decoder(points, memory)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
                 pred_point = self.linear(future_point) 
-                pred_point = pred_point[-1:, :, :]
+                #pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                x_src = torch.cat([x_src, pred_point.view(1, -1)], dim=0)
-                out[i, :, :] = pred_point
+                last_points[1:i+1, :] = pred_point[:i, :, 0]
+                out[i, :, :] = pred_point[i, :, :]
             
             return out, trues
     
