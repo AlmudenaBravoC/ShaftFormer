@@ -81,7 +81,7 @@ class ShaftFormer(nn.Module):
     def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
 
         if test and self.args.model_type == "forecasting": 
-            self.device = torch.device("cpu")
+            # self.device = torch.device("cpu")
             self.model.to(self.device).eval()
             self.linear.to(self.device).eval()
             if self.args.two_linear: self.linear2.to(self.device).eval()
@@ -101,6 +101,10 @@ class ShaftFormer(nn.Module):
             #output and input = [sequence len, embedding size, batch]
                 #we want the output to be --> [sequence len, batch, embedding size]
             z_embedding = self.conv1(z).permute(0,2,1)
+                #CON ESTO SALE UNA LINEA RECTA
+            # z_new = self.conv1(z).permute(0,2,1)
+            # z_embedding = torch.ones(z_new.shape, device=self.device)
+            # z_embedding[:150, :, :] = z_new[:150, :, :]
             # positional = self.position_embedding(x)
 
             #create the feature matrix before passing through the conv2
@@ -166,28 +170,32 @@ class ShaftFormer(nn.Module):
             z_src = x_src.unsqueeze(1)
             z_embedding = self.conv1(z_src).permute(0,2,1)
             points = torch.cat((z_embedding, f_embedding[:z_embedding.shape[0], :, :]), dim=2)
-            last_points = torch.zeros((trues.shape[0], trues.shape[1]))
-            last_points[0, :]  = trues[0, :]
+            # last_points = torch.zeros((trues.shape[0], trues.shape[1]), device=self.device)
+            last_points = torch.tensor([], device = self.device)
+            last_points = torch.cat((last_points, trues[0, :]), 0).view(1,-1)
+            print(last_points.shape)
             memory = self.model.encoder(points)
 
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
+                #attention mask for the target
+            attention_mask = [[1 if j <= i else 0 for j in range(trues.shape[0])] for i in range(trues.shape[0])]
             
             for i in range(trues.shape[0]-1): #for every point in the signals
 
-                if i % 10 == 0: print(i)
+                if i % 100 == 0: print(i)
                 
                 z = last_points.unsqueeze(1)
                 z_embedding = self.conv1(z).permute(0,2,1)
-                points = torch.cat((z_embedding, f_embedding[len_src:, :, :]), dim=2)
+                points = torch.cat((z_embedding, f_embedding[:len(last_points), :, :]), dim=2)
 
                 future_point = self.model.decoder(points, memory)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
                 pred_point = self.linear(future_point) 
                 #pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                last_points[i+1, :] = pred_point[i, :, 0]
-                out[i, :, :] = pred_point[i, :, :]
+                last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
+                out[i, :, :] = pred_point[i, :, :].cpu().detach()
             
             return out[:-1, :, :], trues[1:, :]
     
