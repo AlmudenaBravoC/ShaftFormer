@@ -45,7 +45,19 @@ class transformerModel(nn.Module):
         if args.model_type == 'classification' and not data_args.get_class:
             raise Exception('Get class should be TRUE')
     
-        self.model = ShaftFormer(args=args, device=self.device)
+        if args.model_type == 'classification':
+            args.model_type = 'forecasting'
+            self.model = ShaftFormer(args=args, device = self.device)
+            try:
+                self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint_forecasting.pth'))
+            except:
+                raise Exception('The model for classification need a pretrained model of forecasting, check the name of the pretrained model is checkpoint_forecasting.pth')
+            args.model_type = 'classification'
+            model_c = ShaftFormer(args=args, device=self.device)
+            
+            self.model.simple_mlp = model_c.simple_mlp
+        else:
+            self.model = ShaftFormer(args=args, device=self.device)
 
 
     def predict(self, future:bool = True):
@@ -144,7 +156,7 @@ class transformerModel(nn.Module):
         if self.args.model_type == "forecasting": 
             criterion =  self._select_criterion()
 
-        else: 
+        else: #classification
             criterion =  self._select_criterion(1)
             trues_cm = []
             pred_cm = []

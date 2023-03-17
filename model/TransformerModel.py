@@ -60,15 +60,11 @@ class ShaftFormer(nn.Module):
                 self.deconv.to(device)
 
         else:
-            print("model for classification")
-            decoder = nn.Linear(1, 1) #we are not going to use this
-            transformer = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
-            self.encoder_transformer = transformer.encoder
+            print("new layer for classification")
 
-            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels*32, output_dim=self.args.num_class)
+            self.simple_mlp = MLP_simple(input_dim= self.args.outchannels*250, output_dim=self.args.num_class)
 
             if self.args.use_gpu:
-                self.encoder_transformer.to(self.device)
                 self.simple_mlp.to(self.device)
         
         #both models
@@ -88,6 +84,12 @@ class ShaftFormer(nn.Module):
             self.deconv.to(self.device).eval()
             self.conv1.to(self.device).eval()
             if self.args.conf_cnn: self.conv2.to(self.device).eval()
+                    
+        # if self.args.model_type=="classification":
+        #     #we need to freeze the model part until the decoder (which we have change)
+        #     self.conv1.requires_grad_ = False
+        #     self.conv2.requires_grad_=False
+        #     self.model.encoder.requires_grad_=False
         
         #target / source 
         len_seq = x.shape[0]
@@ -139,14 +141,14 @@ class ShaftFormer(nn.Module):
                     # all except the last point --> then the trues will be all except the first
                 out = self.model(src,tgt[:-1, :, :], tgt_mask= attention_mask)
                 # out = self.model(src,torch.roll(tgt, 1, dims=0), tgt_mask= attention_mask)
-    
+
                 out = self.linear(out)
                 if self.args.two_linear: out = self.linear2(out)
                 
                 return out, trues[1:, :]
-            
+        
             else: #classification model
-                memory = self.encoder_transformer(tot_emb)
+                memory = self.model.encoder(tot_emb)
                 
                 pred_class = self.simple_mlp.forward(memory) #now we use the memory from the encoder in the MLP
                 return pred_class
@@ -173,28 +175,31 @@ class ShaftFormer(nn.Module):
             # last_points = torch.zeros((trues.shape[0], trues.shape[1]), device=self.device)
             last_points = torch.tensor([], device = self.device)
             last_points = torch.cat((last_points, trues[0, :]), 0).view(1,-1)
-            print(last_points.shape)
             memory = self.model.encoder(points)
 
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
-                #attention mask for the target
-            attention_mask = [[1 if j <= i else 0 for j in range(trues.shape[0])] for i in range(trues.shape[0])]
+
+                #USING SOME RANDOM NOISE INSTEAD OF ALL 0
+            test_points = torch.tensor(np.random.uniform(low=-3, high=3, size=(trues.shape[0], trues.shape[1])), dtype=torch.float32, device=self.device )
+            test_points[0, :] = trues[0, :]
             
             for i in range(trues.shape[0]-1): #for every point in the signals
 
                 if i % 100 == 0: print(i)
                 
-                z = last_points.unsqueeze(1)
+                # z = last_points.unsqueeze(1)
+                z= test_points.unsqueeze(1)
                 z_embedding = self.conv1(z).permute(0,2,1)
-                points = torch.cat((z_embedding, f_embedding[:len(last_points), :, :]), dim=2)
+                points = torch.cat((z_embedding, f_embedding[:len(z), :, :]), dim=2) #ANTES len(last_points)
 
                 future_point = self.model.decoder(points, memory)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
                 pred_point = self.linear(future_point) 
-                #pred_point = pred_point[-1:, :, :]
+                # pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
+                # last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
+                test_points[i+1, :] = pred_point[i, :, 0].detach()
                 out[i, :, :] = pred_point[i, :, :].cpu().detach()
             
             return out[:-1, :, :], trues[1:, :]
@@ -206,5 +211,12 @@ class ShaftFormer(nn.Module):
 
         # set lower triangular part of attention mask to 0
         attention_mask = torch.tril(attention_mask, diagonal=0)
+        """[[1., 0., 0.,  ..., 0., 0., 0.],
+         [1., 1., 0.,  ..., 0., 0., 0.],
+         [1., 1., 1.,  ..., 0., 0., 0.],
+         ...,
+         [1., 1., 1.,  ..., 1., 0., 0.],
+         [1., 1., 1.,  ..., 1., 1., 0.],
+         [1., 1., 1.,  ..., 1., 1., 1.]]"""
 
         return attention_mask

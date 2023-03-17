@@ -30,7 +30,7 @@ if args.model_type == 'classification':
     args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 0
+args.gpu = 3
 args.use_multi_gpu = False
 args.devices = '0,1,3'
 
