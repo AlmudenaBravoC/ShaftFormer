@@ -6,7 +6,7 @@ from utils.myTools import dotdict
 import numpy as np
 
 from model.cnn_embeding import context_embedding, PositionalEmbedding
-from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple
+from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple, TransformerDecoder, TransformerDecoderLayer
 
 
 class ShaftFormer(nn.Module):
@@ -26,6 +26,10 @@ class ShaftFormer(nn.Module):
         ## ENCODER
         encoder_layer = TransformerEncoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
         encoder = TransformerEncoder(encoder_layer, num_layers=self.args.nencoder)
+
+        ## DECODER
+        decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
+        decoder = TransformerDecoder(decoder_layer, num_layers=self.args.nencoder)
 
 
         ## MODEL
@@ -48,7 +52,7 @@ class ShaftFormer(nn.Module):
             elif args.linear_initialization == 'Uniform':
                 nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
 
-            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             if self.args.use_multi_gpu and self.args.use_gpu:
                 print('\t Parallelization of the model')
                 self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]

@@ -50,7 +50,34 @@ class TransformerEncoder(Module):
 
         return output
 
+class TransformerDecoder(Module):
+    __constants__ = ['norm']
 
+    def __init__(self, decoder_layer, num_layers, norm=None):
+        super().__init__()
+        torch._C._log_api_usage_once(f"torch.nn.modules.{self.__class__.__name__}")
+        self.layers = _get_clones(decoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.norm = norm
+    
+    def forward(self, tgt: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None,
+                memory_mask: Optional[Tensor] = None, tgt_key_padding_mask: Optional[Tensor] = None,
+                memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+        
+        output = tgt
+
+        for mod in self.layers:
+            output = mod(output, memory, tgt_mask=tgt_mask,
+                         memory_mask=memory_mask,
+                         tgt_key_padding_mask=tgt_key_padding_mask,
+                         memory_key_padding_mask=memory_key_padding_mask)
+
+        if self.norm is not None:
+            output = self.norm(output)
+
+        return output
+
+    
 
 #%% LAYERS
 class TransformerEncoderLayer(Module):
@@ -151,6 +178,71 @@ class TransformerEncoderLayer(Module):
         # x = x.transpose(1,2)
 
         return x
+
+class TransformerDecoderLayer(Module):
+    __constants__ = ['batch_first', 'norm_first']
+
+    def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
+                 activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
+                 layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
+                 device=None, dtype=None, 
+                 attn='prob', factor =5, output_attention = False) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super(TransformerDecoderLayer, self).__init__()
+
+
+        # Legacy string support for activation function.
+        if isinstance(activation, str):
+            activation = _get_activation_fn(activation)
+
+        # We can't test self.activation in forward() in TorchScript,
+        # so stash some information about it instead.
+        if activation is F.relu or isinstance(activation, torch.nn.ReLU):
+            self.activation_relu_or_gelu = 1
+        elif activation is F.gelu or isinstance(activation, torch.nn.GELU):
+            self.activation_relu_or_gelu = 2
+        else:
+            self.activation_relu_or_gelu = 0
+        self.activation = activation
+
+
+        ## NEW ATTENTION LAYER -- based on the informer
+        Attn1 = ProbAttention 
+        Attn2 = FullAttention
+        self.attn = AttentionLayer(Attn1(False, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
+                                d_model, nhead, mix=False, **factory_kwargs)
+        self.cross = AttentionLayer(Attn2(False, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
+                                d_model, nhead, mix=False, **factory_kwargs)
+        
+        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_model*4, kernel_size=1, **factory_kwargs)
+        self.conv2 = nn.Conv1d(in_channels=d_model*4, out_channels=d_model, kernel_size=1, **factory_kwargs)
+        self.norm1 = nn.LayerNorm(d_model, **factory_kwargs)
+        self.norm2 = nn.LayerNorm(d_model, **factory_kwargs)
+        self.norm3 = nn.LayerNorm(d_model, **factory_kwargs)
+        self.dropout = nn.Dropout(dropout)
+        
+
+
+    def forward(self, x: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None, memory_mask: Optional[Tensor] = None,
+        tgt_key_padding_mask: Optional[Tensor] = None, memory_key_padding_mask: Optional[Tensor] = None, tgt_is_causal: bool = False,
+        memory_is_causal: bool = False,) -> Tensor:
+        x = x + self.dropout(self.attn(
+            x, x, x,
+            attn_mask=tgt_mask
+        )[0])
+        x = self.norm1(x)
+
+        x = x + self.dropout(self.cross(
+            x, memory, memory,
+            attn_mask=tgt_key_padding_mask
+        )[0])
+
+        y = x = self.norm2(x)
+        y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
+        y = self.dropout(self.conv2(y).transpose(-1,1))
+
+        return self.norm3(x+y)
+
 
 
 
