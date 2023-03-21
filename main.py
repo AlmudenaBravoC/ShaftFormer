@@ -11,10 +11,10 @@ import ast
 args = dotdict()
 
     #model
-args.heads = 6 #number of heads for the transformer
-args.nencoder=2 #number of layers in the encocer
+args.heads = 12 #number of heads for the transformer
+args.nencoder=4 #number of layers in the encocer
 args.dropout = 0.1 #dropout
-args.train_epochs = 100 #number of epochs to train the model (a maximum number of them)
+args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
 args.learning_rate = 0.0001 
@@ -30,7 +30,7 @@ if args.model_type == 'classification':
     args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 3
+args.gpu = 0
 args.use_multi_gpu = False
 args.devices = '0,1,3'
 
@@ -63,7 +63,8 @@ if train:
             if res == 'y': seguir = True
             else:
                 i += 1 #add a new experiment
-                args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
+                # args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
+                args.name_folder =f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
         else: seguir = True
 
 else: #we are testing the model saved

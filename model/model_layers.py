@@ -209,7 +209,7 @@ class TransformerDecoderLayer(Module):
         ## NEW ATTENTION LAYER -- based on the informer
         Attn1 = ProbAttention 
         Attn2 = FullAttention
-        self.attn = AttentionLayer(Attn1(False, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
+        self.attn = AttentionLayer(Attn1(True, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
                                 d_model, nhead, mix=False, **factory_kwargs)
         self.cross = AttentionLayer(Attn2(False, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
                                 d_model, nhead, mix=False, **factory_kwargs)

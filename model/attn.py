@@ -16,6 +16,7 @@ class FullAttention(nn.Module):
         self.dropout = nn.Dropout(attention_dropout)
         
     def forward(self, queries, keys, values, attn_mask):
+        #Q [B, H, L, D]
         B, L, H, E = queries.shape
         _, S, _, D = values.shape
         scale = self.scale or 1./sqrt(E)
@@ -24,6 +25,7 @@ class FullAttention(nn.Module):
         if self.mask_flag:
             if attn_mask is None:
                 attn_mask = TriangularCausalMask(B, L, device=queries.device)
+                print(np.shape(attn_mask.mask))
 
             scores.masked_fill_(attn_mask.mask, -np.inf)
 
