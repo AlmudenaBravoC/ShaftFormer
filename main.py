@@ -11,14 +11,14 @@ import ast
 args = dotdict()
 
     #model
-args.heads = 12 #number of heads for the transformer
-args.nencoder=4 #number of layers in the encocer
+args.heads = 3 #number of heads for the transformer
+args.nencoder=3 #number of layers in the encocer
 args.dropout = 0.1 #dropout
-args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
+args.train_epochs = 100 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
 args.learning_rate = 0.0001 
-args.batch_size = 10 #16
+args.batch_size = 16 #16
 
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':
@@ -30,7 +30,7 @@ if args.model_type == 'classification':
     args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 0
+args.gpu = 2
 args.use_multi_gpu = False
 args.devices = '0,1,3'
 
@@ -53,7 +53,7 @@ num_lin = 2 if args.two_linear else 1
 args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
 
 
-train = True
+train = False
 if train:
     seguir = False
     while not seguir:
@@ -91,7 +91,8 @@ data_args.get_class = True #if we want to also get the class of the data
 data_args.several_conf = True
 
 #%% MODEL
-
+# import os
+# os.chdir('export/gts_usuarios/abcerrada/Trenes/ShaftFormer')
 model = transformerModel(args, data_args)
 if train: 
     model.trainloop()

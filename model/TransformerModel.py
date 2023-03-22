@@ -28,8 +28,8 @@ class ShaftFormer(nn.Module):
         encoder = TransformerEncoder(encoder_layer, num_layers=self.args.nencoder)
 
         ## DECODER
-        decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
-        decoder = TransformerDecoder(decoder_layer, num_layers=self.args.nencoder)
+        # decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
+        # decoder = TransformerDecoder(decoder_layer, num_layers=self.args.nencoder)
 
 
         ## MODEL
@@ -52,7 +52,7 @@ class ShaftFormer(nn.Module):
             elif args.linear_initialization == 'Uniform':
                 nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
 
-            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, custom_decoder=decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             if self.args.use_multi_gpu and self.args.use_gpu:
                 print('\t Parallelization of the model')
                 self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]
@@ -215,12 +215,20 @@ class ShaftFormer(nn.Module):
 
         # set lower triangular part of attention mask to 0
         attention_mask = torch.tril(attention_mask, diagonal=0)
-        """[[1., 0., 0.,  ..., 0., 0., 0.],
+        """[0., 0., 0.,  ..., 0., 0., 0.],
+         [1., 0., 0.,  ..., 0., 0., 0.],
          [1., 1., 0.,  ..., 0., 0., 0.],
-         [1., 1., 1.,  ..., 0., 0., 0.],
          ...,
+         [1., 1., 1.,  ..., 0., 0., 0.],
          [1., 1., 1.,  ..., 1., 0., 0.],
-         [1., 1., 1.,  ..., 1., 1., 0.],
-         [1., 1., 1.,  ..., 1., 1., 1.]]"""
+         [1., 1., 1.,  ..., 1., 1., 0.]"""
+        
 
-        return attention_mask
+        #Transform the 1. to False and 0. to True. :: torch.logical_not(attention_mask)
+        # attention_mask.bool() 
+        new_attn_mask = torch.zeros_like(attention_mask.bool() , dtype=torch.float32)
+        new_attn_mask.masked_fill_(attention_mask.bool() , -1e7)
+
+        # return torch.logical_not(attention_mask)
+        # return attention_mask.bool()
+        return new_attn_mask
