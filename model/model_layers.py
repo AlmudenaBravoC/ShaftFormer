@@ -6,6 +6,7 @@ from torch import Tensor
 from torch.nn import Dropout, ModuleList, Module
 from torch.nn import functional as F
 import torch.nn as nn
+from torch.nn.modules.activation import MultiheadAttention
 
 #attention layer
 from model.attn import ProbAttention, FullAttention, AttentionLayer
@@ -78,6 +79,44 @@ class TransformerDecoder(Module):
         return output
 
     
+class SimpleDecoder(Module):
+
+     def __init__(self, d_model: int, nhead: int, dropout: float = 0.1,
+                 activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
+                 device=None, dtype=None, batch_first=False, factor =5, output_attention = False) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super(SimpleDecoder, self).__init__()
+
+        # Legacy string support for activation function.
+        if isinstance(activation, str):
+            activation = _get_activation_fn(activation)
+
+        # We can't test self.activation in forward() in TorchScript,
+        # so stash some information about it instead.
+        if activation is F.relu or isinstance(activation, torch.nn.ReLU):
+            self.activation_relu_or_gelu = 1
+        elif activation is F.gelu or isinstance(activation, torch.nn.GELU):
+            self.activation_relu_or_gelu = 2
+        else:
+            self.activation_relu_or_gelu = 0
+        self.activation = activation
+
+
+        ## NEW ATTENTION LAYER -- based on the informer
+        # Attn1 = ProbAttention 
+        # self.attn = AttentionLayer(Attn1(True, factor, attention_dropout=dropout, output_attention=output_attention, **factory_kwargs), 
+        #                         d_model, nhead, mix=False, **factory_kwargs)
+
+        self.attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
+                                            **factory_kwargs)
+        
+
+        def forward(self, x: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None) -> Tensor:
+            #self.attn takes query, key and value
+            x = self.attn(x, memory, memory,
+                attn_mask=tgt_mask)[0]
+            
+            return x
 
 #%% LAYERS
 class TransformerEncoderLayer(Module):

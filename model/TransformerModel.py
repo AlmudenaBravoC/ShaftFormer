@@ -186,9 +186,9 @@ class ShaftFormer(nn.Module):
 
                 #USING SOME RANDOM NOISE INSTEAD OF ALL 0
             test_points = torch.tensor(np.random.uniform(low=-3, high=3, size=(trues.shape[0], trues.shape[1])), dtype=torch.float32, device=self.device )
-            test_points[0, :] = trues[0, :]
+            test_points[:10, :] = trues[:10, :]
             
-            for i in range(trues.shape[0]-1): #for every point in the signals
+            for i in range(trues.shape[0]-10): #for every point in the signals
 
                 if i % 100 == 0: print(i)
                 
