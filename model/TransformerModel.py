@@ -6,7 +6,7 @@ from utils.myTools import dotdict
 import numpy as np
 
 from model.cnn_embeding import context_embedding, PositionalEmbedding
-from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple, TransformerDecoder, TransformerDecoderLayer
+from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple, TransformerDecoder, TransformerDecoderLayer, SimpleDecoder
 
 
 class ShaftFormer(nn.Module):
@@ -30,6 +30,7 @@ class ShaftFormer(nn.Module):
         ## DECODER
         # decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
         # decoder = TransformerDecoder(decoder_layer, num_layers=self.args.nencoder)
+        decoder = SimpleDecoder(self.args.outchannels, 1, self.args.dropout, device = self.device)
 
 
         ## MODEL
@@ -107,10 +108,6 @@ class ShaftFormer(nn.Module):
             #output and input = [sequence len, embedding size, batch]
                 #we want the output to be --> [sequence len, batch, embedding size]
             z_embedding = self.conv1(z).permute(0,2,1)
-                #CON ESTO SALE UNA LINEA RECTA
-            # z_new = self.conv1(z).permute(0,2,1)
-            # z_embedding = torch.ones(z_new.shape, device=self.device)
-            # z_embedding[:150, :, :] = z_new[:150, :, :]
             # positional = self.position_embedding(x)
 
             #create the feature matrix before passing through the conv2
@@ -183,27 +180,23 @@ class ShaftFormer(nn.Module):
 
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
-
-                #USING SOME RANDOM NOISE INSTEAD OF ALL 0
-            test_points = torch.tensor(np.random.uniform(low=-3, high=3, size=(trues.shape[0], trues.shape[1])), dtype=torch.float32, device=self.device )
-            test_points[:10, :] = trues[:10, :]
             
             for i in range(trues.shape[0]-10): #for every point in the signals
 
                 if i % 100 == 0: print(i)
                 
-                # z = last_points.unsqueeze(1)
-                z= test_points.unsqueeze(1)
+                z = last_points.unsqueeze(1)
+                # z= test_points.unsqueeze(1)
                 z_embedding = self.conv1(z).permute(0,2,1)
-                points = torch.cat((z_embedding, f_embedding[:len(z), :, :]), dim=2) #ANTES len(last_points)
+                points = torch.cat((z_embedding, f_embedding[:len(last_points), :, :]), dim=2) #ANTES len(last_points)
 
                 future_point = self.model.decoder(points, memory)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
                 pred_point = self.linear(future_point) 
                 # pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                # last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
-                test_points[i+1, :] = pred_point[i, :, 0].detach()
+                last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
+                # test_points[i+1, :] = pred_point[i, :, 0].detach()
                 out[i, :, :] = pred_point[i, :, :].cpu().detach()
             
             return out[:-1, :, :], trues[1:, :]
@@ -212,9 +205,10 @@ class ShaftFormer(nn.Module):
     def _get_attention_mask(self, batch_size, seq_len):
         # create tensor with shape (batch_size, seq_len, seq_len) initialized with ones
         attention_mask = torch.ones(batch_size * self.args.heads, seq_len, seq_len)
+        # attention_mask = torch.ones(batch_size, seq_len, seq_len)
 
         # set lower triangular part of attention mask to 0
-        attention_mask = torch.tril(attention_mask, diagonal=0)
+        attention_mask = torch.triu(attention_mask, diagonal=1)
         """[0., 0., 0.,  ..., 0., 0., 0.],
          [1., 0., 0.,  ..., 0., 0., 0.],
          [1., 1., 0.,  ..., 0., 0., 0.],
@@ -223,11 +217,12 @@ class ShaftFormer(nn.Module):
          [1., 1., 1.,  ..., 1., 0., 0.],
          [1., 1., 1.,  ..., 1., 1., 0.]"""
         
+        new_attn_mask = attention_mask * -1e7 + 1
 
         #Transform the 1. to False and 0. to True. :: torch.logical_not(attention_mask)
         # attention_mask.bool() 
-        new_attn_mask = torch.zeros_like(attention_mask.bool() , dtype=torch.float32)
-        new_attn_mask.masked_fill_(attention_mask.bool() , -1e7)
+        # new_attn_mask = torch.zeros_like(attention_mask.bool() , dtype=torch.float32)
+        # new_attn_mask.masked_fill_(attention_mask.bool() , -1e7)
 
         # return torch.logical_not(attention_mask)
         # return attention_mask.bool()

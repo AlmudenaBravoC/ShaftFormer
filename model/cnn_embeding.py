@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import math
+import numpy as np
 
 #based on the transformer_time_series (https://github.com/mlpotter/Transformer_Time_Series/blob/master/Transformer_Decoder_nologsparse.ipynb)
 

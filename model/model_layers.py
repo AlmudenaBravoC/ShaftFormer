@@ -81,7 +81,7 @@ class TransformerDecoder(Module):
     
 class SimpleDecoder(Module):
 
-     def __init__(self, d_model: int, nhead: int, dropout: float = 0.1,
+    def __init__(self, d_model: int, nhead: int, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
                  device=None, dtype=None, batch_first=False, factor =5, output_attention = False) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
@@ -111,9 +111,15 @@ class SimpleDecoder(Module):
                                             **factory_kwargs)
         
 
-        def forward(self, x: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(self, tgt: Tensor,memory: Tensor,
+            tgt_mask: Optional[Tensor] = None,
+            memory_mask: Optional[Tensor] = None,
+            tgt_key_padding_mask: Optional[Tensor] = None,
+            memory_key_padding_mask: Optional[Tensor] = None,
+            tgt_is_causal: bool = False,
+            memory_is_causal: bool = False,) -> Tensor:
             #self.attn takes query, key and value
-            x = self.attn(x, memory, memory,
+            x = self.attn(tgt, tgt, tgt,
                 attn_mask=tgt_mask)[0]
             
             return x
