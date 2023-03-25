@@ -173,15 +173,16 @@ class ShaftFormer(nn.Module):
             z_src = x_src.unsqueeze(1)
             z_embedding = self.conv1(z_src).permute(0,2,1)
             points = torch.cat((z_embedding, f_embedding[:z_embedding.shape[0], :, :]), dim=2)
-            # last_points = torch.zeros((trues.shape[0], trues.shape[1]), device=self.device)
-            last_points = torch.tensor([], device = self.device)
-            last_points = torch.cat((last_points, trues[0, :]), 0).view(1,-1)
             memory = self.model.encoder(points)
 
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
+
+            w = 10 
+            last_points = torch.tensor(trues[:w, :], device = self.device)
+
             
-            for i in range(trues.shape[0]-10): #for every point in the signals
+            for i in range(w, trues.shape[0]-1): #for every point in the signals
 
                 if i % 100 == 0: print(i)
                 
@@ -195,9 +196,13 @@ class ShaftFormer(nn.Module):
                 # pred_point = pred_point[-1:, :, :]
 
                 #update the signal to have the new information
-                last_points = torch.cat((last_points, pred_point[i, :, 0].detach().view(1,-1)), 0)
+                last_points = torch.cat((last_points, pred_point[-1, :, 0].detach().view(1,-1)), 0)
+                # last_points = pred_point[:i+1, :, 0]
                 # test_points[i+1, :] = pred_point[i, :, 0].detach()
-                out[i, :, :] = pred_point[i, :, :].cpu().detach()
+
+                # if i==w: out[:i, :, :] = pred_point[:i, :, :].cpu().detach()
+                # else: out[i, :, :] = pred_point[i, :, : ].cpu().detach()
+                out[:i, :, :] = pred_point.cpu().detach()
             
             return out[:-1, :, :], trues[1:, :]
     
