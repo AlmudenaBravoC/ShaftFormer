@@ -178,8 +178,8 @@ class ShaftFormer(nn.Module):
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
 
-            w = 10 
-            last_points = torch.tensor(trues[:w, :], device = self.device)
+            w = 200
+            last_points = trues[:w, :]
 
             
             for i in range(w, trues.shape[0]-1): #for every point in the signals

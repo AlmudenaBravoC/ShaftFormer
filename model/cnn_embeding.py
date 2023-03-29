@@ -95,8 +95,8 @@ def custom_embedding(args, x):
     kernel_size: k is the width of the 1-D sliding kernel
     """
     input_embedding = context_embedding(in_channels = args.inchannels, embedding_size = args.outchannels, k = args.kernel ) #output = [sequence len, embedding size, batch]
-    positional_embedding = torch.nn.Embedding(args.inchannels*args.outchannels, args.outchannels)
-    # positional_encoding = PositionalEncoding(args.outchannels, )
+    # positional_embedding = torch.nn.Embedding(args.inchannels*args.outchannels, args.outchannels)
+    positional_encoding = PositionalEncoding(args.outchannels, 2000)
 
 
     z = x.unsqueeze(1)
@@ -106,10 +106,10 @@ def custom_embedding(args, x):
     if torch.max(x.type(torch.long)) >= args.inchannels*args.outchannels:
         raise ValueError(f"Index out of range: change values of the Embedding:: input {torch.max(x.type(torch.long))} >= weights {args.inchannels*args.outchannels}")
 
-    # positional_embeddings = positional_embedding(x.type(torch.long)) #.permute(1,0,2)
+    positional_embeddings = positional_encoding(x) #.permute(1,0,2)
     # print(positional_embeddings)
 
-    # input_embedding = z_embedding+positional_embeddings
+    z_embedding = z_embedding+positional_embeddings
 
     # return input_embedding
     return z_embedding

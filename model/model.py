@@ -261,8 +261,8 @@ class transformerModel(nn.Module):
         fig, axes = plt.subplots(row, col ,figsize=(12,5)) #just save the example of the last batch trained
 
         for i, ax in enumerate(axes.flat):
-            ax.plot(trues.cpu().detach().numpy()[:200,i], label='GroundTruth')
-            ax.plot(pred.cpu().detach().numpy()[:200,i, 0], label='Prediction')
+            ax.plot(trues.cpu().detach().numpy()[:600,i], label='GroundTruth')
+            ax.plot(pred.cpu().detach().numpy()[:600,i, 0], label='Prediction')
             if target != None:
                 ax.set_title(target[i].item())
         fig.suptitle(name, fontsize=16)
