@@ -65,6 +65,7 @@ class transformerModel(nn.Module):
         Function that predicts the future values given only src. 
         If the future is true, the model will predict values to future using "auto-regressive decoding"  
         """
+
         self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location=torch.device('cpu')))
 
         self.model.eval()
@@ -305,6 +306,8 @@ class transformerModel(nn.Module):
 
             #save the indexs of the test
             np.save(f'./../results/{self.args.name_folder}/test_index.npy', self.idx_tst)
+            np.save(f'./../results/{self.args.name_folder}/val_index.npy', self.idx_val)
+            np.save(f'./../results/{self.args.name_folder}/train_index.npy', self.idx_tr)
 
             self.split = True
         return
@@ -367,6 +370,7 @@ class transformerModel(nn.Module):
 
         else:
             self.idx_tst = np.load(f'./../results/{self.args.name_folder}/test_index.npy')
+            # self.idx_tst = np.load(f'./../results/{self.args.name_folder}/train_index.npy')
             tst = dataT[:, self.idx_tst]
             feat_tst = featuresT[self.idx_tst,:]
             if self.data_args.get_class:

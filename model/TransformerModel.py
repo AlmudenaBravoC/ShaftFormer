@@ -178,7 +178,7 @@ class ShaftFormer(nn.Module):
             #x --> [seq, batch]
             out = torch.ones((trues.shape[0], trues.shape[1], 1)) #shape of the output --> [seq_len, batch, 1]
 
-            w = 200
+            w = 100
             last_points = trues[:w, :]
 
             
@@ -191,7 +191,9 @@ class ShaftFormer(nn.Module):
                 z_embedding = self.conv1(z).permute(0,2,1)
                 points = torch.cat((z_embedding, f_embedding[:len(last_points), :, :]), dim=2) #ANTES len(last_points)
 
-                future_point = self.model.decoder(points, memory)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
+                attn_mask = self._get_attention_mask(points.shape[1], points.shape[0]) 
+                attn_mask = attn_mask.to(self.device)
+                future_point = self.model.decoder(points, memory, tgt_mask=attn_mask)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
                 pred_point = self.linear(future_point) 
                 # pred_point = pred_point[-1:, :, :]
 
