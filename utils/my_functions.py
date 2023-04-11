@@ -125,6 +125,7 @@ def get_auc(model, x, xref, feat, Y, path_plot, title='', name=''):
     y_pred = np.argmax(probs, axis=1)
     cm = confusion_matrix(y, y_pred)
     return auc,cm  
+
 def compute_spec(x):
     #f, t, Sxx = signal.spectrogram(x, fs=12800)
     f, t, Sxx_im = signal.spectrogram(x, fs=12800, mode='complex')

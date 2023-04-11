@@ -25,3 +25,18 @@ def preprocessing(n_signals, data, feature_range = (-1, 1), folder_name="data"):
     np.save(f'{folder_name}/min_max_scaler.npy', inform_signal)
 
     return data_new
+
+
+def postprocesing(data, idx, folder_name='data'):
+    data = data.detach().cpu()
+    data_old = np.zeros_like(data)
+    inform_signal = np.load(f'{folder_name}/min_max_scaler.npy')
+    for i in range(len(idx)): #by batch
+        min_, scale_ = inform_signal[idx[i]]
+        signal = data[:,i, :] #take signal by batch
+
+        #original_value = (scaled_value - min_) / scale_
+        data_old[:, i, :] = (signal - min_) / scale_
+    return data_old
+
+

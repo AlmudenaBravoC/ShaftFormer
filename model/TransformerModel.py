@@ -7,6 +7,7 @@ import numpy as np
 
 from model.cnn_embeding import context_embedding, PositionalEmbedding
 from model.model_layers import TransformerEncoderLayer, TransformerEncoder, MLP_simple, TransformerDecoder, TransformerDecoderLayer, SimpleDecoder
+from data.procesamiento import postprocesing
 
 
 class ShaftFormer(nn.Module):
@@ -76,10 +77,10 @@ class ShaftFormer(nn.Module):
         self.conv1.to(device)
         if self.args.conf_cnn: self.conv2.to(device)
     
-    def forward(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
-        return self._process_one_batch(x, feat, target_len, test)
+    def forward(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False, idx=None):
+        return self._process_one_batch(x, feat, target_len, test, idx)
     
-    def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False):
+    def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False, idx=None):
 
         if test and self.args.model_type == "forecasting": 
             # self.device = torch.device("cpu")
@@ -150,8 +151,12 @@ class ShaftFormer(nn.Module):
         
             else: #classification model
                 memory = self.model.encoder(tot_emb)
+
+                #aply here the min-max scaler in reverse (preprocessing that is done to the signal)
+                memory_new = postprocesing(memory, idx)
+                memory_new= torch.tensor(memory_new).to(self.device)
                 
-                pred_class = self.simple_mlp.forward(memory) #now we use the memory from the encoder in the MLP
+                pred_class = self.simple_mlp.forward(memory_new) #now we use the memory from the encoder in the MLP
                 return pred_class
 
 

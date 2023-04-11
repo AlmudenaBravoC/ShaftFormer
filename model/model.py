@@ -73,7 +73,7 @@ class transformerModel(nn.Module):
         
         tst_loader = self._get_data( test = True ) #we get the test loader
         if self.data_args.get_class:
-            x, class_t, feat = next(iter(tst_loader))
+            x, class_t, feat, idx = next(iter(tst_loader))
             pred, trues = self.model.forward(x=x, feat=feat, test=future) 
             self.plot_signals(pred, trues, target=class_t, name=f'testResult')
         
@@ -109,7 +109,7 @@ class transformerModel(nn.Module):
         
         for x in x_loader:
             if self.data_args.get_class:
-                x, class_t, feat = x
+                x, class_t, feat, idx = x
             else:
                 x, feat = x
             
@@ -177,15 +177,15 @@ class transformerModel(nn.Module):
                 model_optim.zero_grad()
 
                 if self.data_args.get_class:
-                    tr, class_tr, feat = tr
+                    tr, class_tr, feat, idx = tr
                 else:
                     tr, feat = tr
                 
                 if self.args.model_type == "forecasting":
                     pred, trues = self.model.forward(x=tr, feat=feat)
                     loss = criterion(pred[:,:,0], trues)
-                else:
-                    pred_soft = self.model.forward(x=tr, feat=feat)
+                else: #classification
+                    pred_soft = self.model.forward(x=tr, feat=feat, idx = idx)
                     loss = criterion(pred_soft, class_tr.to(self.device))
 
                     trues_cm.extend(class_tr.cpu())
@@ -356,8 +356,8 @@ class transformerModel(nn.Module):
             if self.data_args.get_class: #we add the target so we can use it 
                 tr_class = targetT[self.idx_tr]
                 val_class = targetT[self.idx_val]
-                dataset = CustomDatasetTarget(tr, tr_class, feat_tr)
-                dataset2 = CustomDatasetTarget(val, val_class, feat_val)
+                dataset = CustomDatasetTarget(tr, tr_class, feat_tr, self.idx_tr)
+                dataset2 = CustomDatasetTarget(val, val_class, feat_val, self.idx_val)
                 tr_loader = DataLoader(dataset, batch_size = self.args.batch_size, collate_fn=collate_fn_target)
                 val_loader = DataLoader(dataset2, batch_size = self.args.batch_size, collate_fn=collate_fn_target)
             else:
@@ -375,7 +375,7 @@ class transformerModel(nn.Module):
             feat_tst = featuresT[self.idx_tst,:]
             if self.data_args.get_class:
                 tst_class = targetT[self.idx_tst]
-                dataset = CustomDatasetTarget(tst, tst_class, feat_tst)
+                dataset = CustomDatasetTarget(tst, tst_class, feat_tst, self.idx_tst)
                 ts_loader = DataLoader(dataset, batch_size = self.args.batch_size, collate_fn=collate_fn_target, shuffle=False)
             else:
                 dataset = CustomDataset(tst)
