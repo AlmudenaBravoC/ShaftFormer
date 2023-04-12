@@ -130,7 +130,7 @@ class transformerModel(nn.Module):
 
         if total_loss < last_loss:
             if self.data_args.get_class and self.args.model_type == 'forecasting':
-                x, class_t, feat = next(iter(x_loader))
+                x, class_t, feat, idx = next(iter(x_loader))
                 pred, trues = self.model.forward(x=x, feat=feat)
                 self.plot_signals(pred, trues, target=class_t, name='validationResults')
             elif self.args.model_type == 'classification':

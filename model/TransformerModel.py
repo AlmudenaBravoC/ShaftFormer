@@ -16,7 +16,7 @@ class ShaftFormer(nn.Module):
         self.args = args
         self.device = device
 
-        self.sigma = 1
+        self.sigma = torch.tensor(0.5).to(device)
 
         ##EMBEDDING
         if args.conf_cnn:
@@ -75,6 +75,8 @@ class ShaftFormer(nn.Module):
                 self.linear.to(device)
                 if self.args.two_linear: self.linear2.to(device)
                 self.deconv.to(device)
+                self.fc1.to(device)
+                self.fc2.to(device)
 
         else:
             print("new layer for classification")
@@ -153,7 +155,7 @@ class ShaftFormer(nn.Module):
                 
                 # RESIDUAL CONNECTIONS
                 mean = self.fc1(out) # We compute the mean
-                variance = torch.exp(self.fc2(out))+torch.ones(mean.shape)*self.sigma # We compute the variance
+                variance = torch.exp(self.fc2(out))+torch.ones(mean.shape, device = self.device)*self.sigma # We compute the variance
                 noise = torch.randn_like(mean)*torch.sqrt(variance) # We generate noise of the adecuate variance
                 out = mean+noise # this is the sample (final value)
 

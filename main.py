@@ -25,7 +25,7 @@ if args.linear_initialization == 'Uniform':
     args.a = -0.1
     args.b = 0.1
 
-args.model_type = "classification" #['classification', 'forecasting']
+args.model_type = "forecasting" #['classification', 'forecasting']
 if args.model_type == 'classification':
     args.num_class = 4
 
