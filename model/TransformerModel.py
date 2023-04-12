@@ -16,6 +16,8 @@ class ShaftFormer(nn.Module):
         self.args = args
         self.device = device
 
+        self.sigma = 1
+
         ##EMBEDDING
         if args.conf_cnn:
             self.conv1 = context_embedding(in_channels = self.args.inchannels, embedding_size = self.args.outchannels-self.args.outchannels_conf, k = self.args.kernel ) 
@@ -43,9 +45,16 @@ class ShaftFormer(nn.Module):
                 self.linear = torch.nn.Linear(args.outchannels, self.args.outchannels-self.args.outchannels_conf)
                 self.linear2 = torch.nn.Linear(self.args.outchannels-self.args.outchannels_conf, args.inchannels)
             else:
+                ##not using the residual connection
                 self.linear = torch.nn.Linear(args.outchannels, args.inchannels)
             
             self.deconv = context_embedding(in_channels=self.args.outchannels, embedding_size=self.args.inchannels, k=self.args.kernel)
+
+            ### LAYERS FOR RESIDUAL CONNECTIONS
+                # One linear layer to estimate mean
+            self.fc1 = nn.Linear(args.outchannels, args.inchannels)        
+                 # One linear layer to estimate log-variance
+            self.fc2 = nn.Linear(args.outchannels, args.inchannels) 
 
             if args.linear_initialization == 'Xavier':
                 nn.init.xavier_uniform_(self.linear.weight)
@@ -55,6 +64,8 @@ class ShaftFormer(nn.Module):
                 nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
 
             self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            
+            #GPU ________________________________________________
             if self.args.use_multi_gpu and self.args.use_gpu:
                 print('\t Parallelization of the model')
                 self.model = nn.DataParallel(self.model.cpu(), device_ids=self.args.device_ids, dim=1) #dim = 1 that is where the signal is --> [len, batch, dim]
@@ -113,11 +124,6 @@ class ShaftFormer(nn.Module):
 
             #create the feature matrix before passing through the conv2
             if self.args.conf_cnn:
-                # f_complete = np.repeat(feat.cpu(), len_seq, axis=0) #repeat each configuration 
-                # f = f_complete.reshape(len_seq, feat.shape[0], feat.shape[1]) #so we obtain a matrix of shape [seq_len, batch, dim]
-                # f = f.to(self.device)
-                # f_embedding = self.conv2(f.permute(0,2,1)).permute(0,2,1)
-
                 #feat is [batch, dim] 
                 f_conv = self.conv2(feat.reshape(feat.shape[0], feat.shape[1], 1)) #we pass the feat through the conv --> [batch, dim(32), 1]
                 f = np.repeat(f_conv.cpu().detach().numpy(), len_seq, axis=0) #repeat each configuration and convert to numpy
@@ -142,9 +148,15 @@ class ShaftFormer(nn.Module):
                     #the first of the trues shold be the second of the tgt. 
                     # all except the last point --> then the trues will be all except the first
                 out = self.model(src,tgt[:-1, :, :], tgt_mask= attention_mask)
-                # out = self.model(src,torch.roll(tgt, 1, dims=0), tgt_mask= attention_mask)
 
-                out = self.linear(out)
+                #out = self.linear(out) # not using the residual connection
+                
+                # RESIDUAL CONNECTIONS
+                mean = self.fc1(out) # We compute the mean
+                variance = torch.exp(self.fc2(out))+torch.ones(mean.shape)*self.sigma # We compute the variance
+                noise = torch.randn_like(mean)*torch.sqrt(variance) # We generate noise of the adecuate variance
+                out = mean+noise # this is the sample (final value)
+
                 if self.args.two_linear: out = self.linear2(out)
                 
                 return out, trues[1:, :]
