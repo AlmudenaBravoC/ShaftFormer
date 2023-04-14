@@ -53,7 +53,7 @@ num_lin = 2 if args.two_linear else 1
 args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
 
 
-train = True
+train = False
 if train:
     seguir = False
     while not seguir:

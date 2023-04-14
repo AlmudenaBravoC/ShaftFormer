@@ -16,7 +16,7 @@ class ShaftFormer(nn.Module):
         self.args = args
         self.device = device
 
-        self.sigma = torch.tensor(0.5).to(device)
+        self.sigma = torch.tensor(0.3).to(device)
 
         ##EMBEDDING
         if args.conf_cnn:
@@ -103,6 +103,8 @@ class ShaftFormer(nn.Module):
             self.deconv.to(self.device).eval()
             self.conv1.to(self.device).eval()
             if self.args.conf_cnn: self.conv2.to(self.device).eval()
+            self.fc1.to(self.device).eval()
+            self.fc2.to(self.device).eval()
                     
         # if self.args.model_type=="classification":
         #     #we need to freeze the model part until the decoder (which we have change)
@@ -213,8 +215,13 @@ class ShaftFormer(nn.Module):
                 attn_mask = self._get_attention_mask(points.shape[1], points.shape[0]) 
                 attn_mask = attn_mask.to(self.device)
                 future_point = self.model.decoder(points, memory, tgt_mask=attn_mask)  #[600, 10, 96] Result will be the next point  (matriz with zeros)
-                pred_point = self.linear(future_point) 
-                # pred_point = pred_point[-1:, :, :]
+                # pred_point = self.linear(future_point) 
+
+                # RESIDUAL CONNECTIONS
+                mean = self.fc1(future_point) # We compute the mean
+                variance = torch.exp(self.fc2(future_point))+torch.ones(mean.shape, device = self.device)*self.sigma # We compute the variance
+                noise = torch.randn_like(mean)*torch.sqrt(variance) # We generate noise of the adecuate variance
+                pred_point = mean+noise # this is the sample (final value)
 
                 #update the signal to have the new information
                 last_points = torch.cat((last_points, pred_point[-1, :, 0].detach().view(1,-1)), 0)
