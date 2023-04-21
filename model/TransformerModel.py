@@ -16,7 +16,7 @@ class ShaftFormer(nn.Module):
         self.args = args
         self.device = device
 
-        self.sigma = torch.tensor(0.3).to(device)
+        self.sigma = torch.tensor(self.args.sigma).to(device)
 
         ##EMBEDDING
         if args.conf_cnn:

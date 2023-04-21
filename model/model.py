@@ -306,8 +306,8 @@ class transformerModel(nn.Module):
 
             #save the indexs of the test
             np.save(f'./../results/{self.args.name_folder}/test_index.npy', self.idx_tst)
-            np.save(f'./../results/{self.args.name_folder}/val_index.npy', self.idx_val)
-            np.save(f'./../results/{self.args.name_folder}/train_index.npy', self.idx_tr)
+            # np.save(f'./../results/{self.args.name_folder}/val_index.npy', self.idx_val)
+            # np.save(f'./../results/{self.args.name_folder}/train_index.npy', self.idx_tr)
 
             self.split = True
         return

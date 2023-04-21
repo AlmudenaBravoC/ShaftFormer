@@ -12,13 +12,14 @@ args = dotdict()
 
     #model
 args.heads = 3 #number of heads for the transformer
-args.nencoder=3 #number of layers in the encocer
+args.nencoder = 3 #number of layers in the encocer
 args.dropout = 0.1 #dropout
 args.train_epochs = 100 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
-args.learning_rate = 0.0001 
+args.learning_rate = 0.001 
 args.batch_size = 16 #16
+args.sigma = 0.35
 
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':
@@ -46,14 +47,14 @@ args.feature_range = (-3, 3) #if the values are small, the model does not learn 
 args.conf_cnn = True #if false, we do not consider the configurations
 args.two_linear = False #if true we use 2 linear (96 to 32 and then 32 to 1). only if conf_cnn is true
 
-i = 2
+i = 3
 conf_num= 2 if args.conf_cnn else 1
 num_lin = 2 if args.two_linear else 1
 # args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_exp{i}'
 args.name_folder = f'shaftformer_{conf_num}cnn_{num_lin}linear_{args.model_type}_exp{i}'
 
 
-train = False
+train = True
 if train:
     seguir = False
     while not seguir:
