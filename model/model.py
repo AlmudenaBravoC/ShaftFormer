@@ -77,27 +77,14 @@ class transformerModel(nn.Module):
             pred, trues = self.model.forward(x=x, feat=feat, test=future) 
             self.plot_signals(pred, trues, target=class_t, name=f'testResult')
         
+        values = []
         for i in range(4): #only for the first 4 signals
             p = pred[:, i, 0]
             t = trues[:, i]
             mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
-            print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
-
-            # for _ in range(2):
-            #     if _ ==0:print(feat[:4])
-            #     else: feat= torch.zeros(feat.shape, dtype=torch.float32)
-            #     pred, trues = self.model.forward(x=x, feat=feat, test=future) 
-            #     self.plot_signals(pred, trues, target=class_t, name=f'testResult{_}')
-
-            #     print()
-            #     if not future:
-            #         for i in range(4): #only for the first 4 signals
-            #             p = pred[:, i, 0]
-            #             t = trues[:, i]
-            #             mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
-            #             print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
-
-
+            values.append(mse)
+            # print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
+        return np.mean(values)
 
     def test(self, x_loader:DataLoader, criterion, last_loss):
         self.model.eval()
@@ -148,7 +135,7 @@ class transformerModel(nn.Module):
         return total_loss
 
     def trainloop(self):
-        self._save_information() #save the information of the model (arguments) in a txt file
+        #self._save_information() #save the information of the model (arguments) in a txt file
         
 
         tr_loader, val_loader = self._get_data()
