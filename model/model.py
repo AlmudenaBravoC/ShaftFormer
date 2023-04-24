@@ -25,7 +25,7 @@ class transformerModel(nn.Module):
         self.args = args
         self.data_args = data_args
 
-        random.seed(231)
+        #random.seed(231)
         self.split = False #just to split the data only one time --> save the values of the index
         self.idx_tr =[]
         self.idx_val = []

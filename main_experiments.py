@@ -18,8 +18,8 @@ for exp in range(30):
     print(f'\tEXPERIMENT NUMBER __________________________ {exp}')
 
         #model
-    args.heads = random.choice([3,6,12]) #number of heads for the transformer
-    args.nencoder = random.choice([3,6]) #number of layers in the encocer
+    args.heads = random.choice([3,6]) #number of heads for the transformer
+    args.nencoder = random.choice([3,4]) #number of layers in the encocer
     args.dropout = round(random.uniform(0.1, 0.5), 2) #dropout
 
     args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
@@ -69,8 +69,6 @@ for exp in range(30):
     data_args.several_conf = True
 
     #%% MODEL
-    print(args)
-
     model = transformerModel(args, data_args)
     model.trainloop()
     
