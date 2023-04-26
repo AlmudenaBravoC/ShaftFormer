@@ -14,7 +14,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import utils.my_functions as fu
 from data.procesamiento import preprocessing
 
-from utils.metrics import metric
+from utils.metrics import metric, MSE
 from model.TransformerModel import ShaftFormer
 
 
@@ -66,23 +66,27 @@ class transformerModel(nn.Module):
         If the future is true, the model will predict values to future using "auto-regressive decoding"  
         """
 
-        self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location= torch.device('cpu')))
+        self.model.to(self.device)
+
 
         self.model.eval()
-        self.device = torch.device("cpu")
+        # self.device = torch.device("cpu")
         
         tst_loader = self._get_data( test = True ) #we get the test loader
-        if self.data_args.get_class:
-            x, class_t, feat, idx = next(iter(tst_loader))
-            pred, trues = self.model.forward(x=x, feat=feat, test=future) 
-            self.plot_signals(pred, trues, target=class_t, name=f'testResult')
-        
         values = []
-        for i in range(4): #only for the first 4 signals
-            p = pred[:, i, 0]
-            t = trues[:, i]
-            mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
-            values.append(mse)
+
+        for x in tst_loader:
+            if self.data_args.get_class:
+                x, class_t, feat, idx = x
+                pred, trues = self.model.forward(x=x, feat=feat, test=future)        
+        
+            for i in range(len(feat)): #only for the first 4 signals
+                p = pred[:, i, 0]
+                t = trues[:, i]
+                # mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
+                values.append(MSE(p.cpu().detach().numpy(), t.cpu().detach().numpy()))
+        self.plot_signals(pred, trues, target=class_t, name=f'testResult')
             # print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
         return np.mean(values)
 
@@ -150,6 +154,7 @@ class transformerModel(nn.Module):
             pred_cm = []
 
         last_loss = np.Inf
+        last_train = 0
         loss_train = []
         loss_val = []
 
@@ -216,6 +221,7 @@ class transformerModel(nn.Module):
                 patience = 0
 
                 last_loss = loss_val[epoch]
+                last_train = loss_train[epoch]
             else:
                 patience += 1
                 if patience >= 5 and loss_val[epoch] > loss_val[epoch-1]: #just break if the patience is big and the loss is not decreasing
@@ -229,7 +235,8 @@ class transformerModel(nn.Module):
         np.save(f'./../results/{self.args.name_folder}/loss_train.npy', loss_train)
         np.save(f'./../results/{self.args.name_folder}/loss_val.npy', loss_val)
 
-        return self.model
+        # return self.model
+        return last_loss, last_train
 
   
 

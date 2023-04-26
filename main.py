@@ -12,14 +12,14 @@ args = dotdict()
 
     #model
 args.heads = 3 #number of heads for the transformer
-args.nencoder = 3 #number of layers in the encocer
-args.dropout = 0.1 #dropout
-args.train_epochs = 150 #number of epochs to train the model (a maximum number of them)
+args.nencoder = 4 #number of layers in the encocer
+args.dropout = 0.48 #dropout
+args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
-args.learning_rate = 0.001 
-args.batch_size = 24 #16
-args.sigma = 0.3
+args.learning_rate = 0.00213 
+args.batch_size = 20 #16
+args.sigma = 0.17
 
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':
@@ -31,7 +31,7 @@ if args.model_type == 'classification':
     args.num_class = 4
 
 args.use_gpu = True if torch.cuda.is_available() else False
-args.gpu = 0
+args.gpu = 1
 args.use_multi_gpu = False
 args.devices = '0,1,3'
 

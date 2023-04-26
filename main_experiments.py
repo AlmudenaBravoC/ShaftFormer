@@ -26,8 +26,10 @@ for exp in range(30):
     args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
     args.learning_rate = round(random.uniform(0.00001, 0.01), 5)
-    args.batch_size = random.choice([16,20,24,28,32]) #16
+    args.batch_size = random.choice([16,20,24]) #16
     args.sigma = round(random.uniform(0.1, 0.5), 2)
+
+    if args.batch_size == 24 : args.heads = 3 
 
     args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
     if args.linear_initialization == 'Uniform':
@@ -39,7 +41,7 @@ for exp in range(30):
         args.num_class = 4
 
     args.use_gpu = True if torch.cuda.is_available() else False
-    args.gpu = 1
+    args.gpu = 0
     args.use_multi_gpu = False
 
         #embedding signal 
@@ -68,9 +70,11 @@ for exp in range(30):
     data_args.get_class = True #if we want to also get the class of the data
     data_args.several_conf = True
 
+    print(f'\n{args.heads},{args.nencoder},{args.dropout},{args.learning_rate},{args.batch_size},{args.sigma}')
+
     #%% MODEL
     model = transformerModel(args, data_args)
-    model.trainloop()
+    val, train= model.trainloop()
     
 
     print('Predicting---- using the test')
@@ -81,12 +85,11 @@ for exp in range(30):
     if not os.path.exists(f'./../results/{args.name_folder}'):
         os.makedirs(f'./../results/{args.name_folder}')
         
-        f= open(f'./../results/{args.name_folder}/results.txt', "w")
-        f.write('heads,n-enc,dropout,LearningRate,batch,sigma,tetsLoss')
-        f.close()
-
-    f = open(f'./../results/{args.name_folder}/results.txt', "a")
-    f.write(f'\n{args.heads},{args.nencoder},{args.dropout},{args.learning_rate},{args.batch_size},{args.sigma},{mse}')
+        f= open(f'./../results/{args.name_folder}/results2.txt', "a")
+        f.write('heads,n-enc,dropout,learningRate,batch,sigma,trainLoss,validationLoss,tetsLoss')
+    else:
+        f = open(f'./../results/{args.name_folder}/results.txt', "a")
+    f.write(f'\n{args.heads},{args.nencoder},{args.dropout},{args.learning_rate},{args.batch_size},{args.sigma},{train},{val},{mse}')
     f.close()
 
 
