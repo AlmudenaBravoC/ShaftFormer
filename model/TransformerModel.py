@@ -95,16 +95,23 @@ class ShaftFormer(nn.Module):
     
     def _process_one_batch(self, x: torch.Tensor, feat: torch.Tensor, target_len=0.3, test=False, idx=None):
 
-        # if test and self.args.model_type == "forecasting": 
-        #     # self.device = torch.device("cpu")
-        #     self.model.to(self.device).eval()
-        #     self.linear.to(self.device).eval()
-        #     if self.args.two_linear: self.linear2.to(self.device).eval()
-        #     self.deconv.to(self.device).eval()
-        #     self.conv1.to(self.device).eval()
-        #     if self.args.conf_cnn: self.conv2.to(self.device).eval()
-        #     self.fc1.to(self.device).eval()
-        #     self.fc2.to(self.device).eval()
+        if test and self.args.model_type == "forecasting": 
+            # self.device = torch.device("cpu")
+            # self.model.to(self.device).eval()
+            self.model.eval()
+            # self.linear.to(self.device).eval()
+            self.linear.eval()
+            # if self.args.two_linear: self.linear2.to(self.device).eval()
+            # self.deconv.to(self.device).eval()
+            self.deconv.eval()
+            # self.conv1.to(self.device).eval()
+            self.conv1.eval()
+            # if self.args.conf_cnn: self.conv2.to(self.device).eval()
+            if self.args.conf_cnn: self.conv2.eval()
+            # self.fc1.to(self.device).eval()
+            self.fc1.eval()
+            # self.fc2.to(self.device).eval()
+            self.fc2.eval()
                     
         # if self.args.model_type=="classification":
         #     #we need to freeze the model part until the decoder (which we have change)

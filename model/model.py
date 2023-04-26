@@ -69,23 +69,29 @@ class transformerModel(nn.Module):
         self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location= torch.device('cpu')))
         self.model.to(self.device)
 
+        if self.args.model_type == "forecasting": 
+            criterion =  self._select_criterion()
+
 
         self.model.eval()
         # self.device = torch.device("cpu")
         
         tst_loader = self._get_data( test = True ) #we get the test loader
         values = []
-
+        
+    
         for x in tst_loader:
             if self.data_args.get_class:
                 x, class_t, feat, idx = x
                 pred, trues = self.model.forward(x=x, feat=feat, test=future)        
-        
-            for i in range(len(feat)): #only for the first 4 signals
-                p = pred[:, i, 0]
-                t = trues[:, i]
-                # mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
-                values.append(MSE(p.cpu().detach().numpy(), t.cpu().detach().numpy()))
+            
+            loss = criterion(pred.detach().cpu()[:,:,0], trues.detach().cpu())
+            # for i in range(len(feat)): #only for the first 4 signals
+            #     p = pred[:, i, 0]
+            #     t = trues[:, i]
+            #     # mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
+            #     values.append(MSE(p.cpu().detach().numpy(), t.cpu().detach().numpy()))
+            values.append(loss)
         self.plot_signals(pred, trues, target=class_t, name=f'testResult')
             # print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
         return np.mean(values)
