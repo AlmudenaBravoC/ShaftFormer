@@ -79,7 +79,7 @@ class transformerModel(nn.Module):
         tst_loader = self._get_data( test = True ) #we get the test loader
         values = []
         
-    
+        d = True
         for x in tst_loader:
             if self.data_args.get_class:
                 x, class_t, feat, idx = x
@@ -92,7 +92,10 @@ class transformerModel(nn.Module):
             #     # mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
             #     values.append(MSE(p.cpu().detach().numpy(), t.cpu().detach().numpy()))
             values.append(loss)
-        self.plot_signals(pred, trues, target=class_t, name=f'testResult')
+
+            if d: 
+                self.plot_signals(pred, trues, target=class_t, name=f'testResult')
+                d = False
             # print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
         return np.mean(values)
 
