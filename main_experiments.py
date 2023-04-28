@@ -13,6 +13,7 @@ import random
 
 #%% ARGUMENTS
 args = dotdict()
+last_loss = np.Inf
 
 for exp in range(30):
     print(f'\tEXPERIMENT NUMBER __________________________ {exp}')
@@ -88,10 +89,15 @@ for exp in range(30):
         f= open(f'./../results/{args.name_folder}/results2.txt', "a")
         f.write('heads,n-enc,dropout,learningRate,batch,sigma,trainLoss,validationLoss,tetsLoss')
     else:
-        f = open(f'./../results/{args.name_folder}/results.txt', "a")
+        f = open(f'./../results/{args.name_folder}/results2.txt', "a")
     f.write(f'\n{args.heads},{args.nencoder},{args.dropout},{args.learning_rate},{args.batch_size},{args.sigma},{train},{val},{mse}')
     f.close()
 
+    if last_loss >mse:
+        last_loss = mse
+        old_file = f'./../results/{args.name_folder}/checkpoint.pth'
+        new_file = f'./../results/{args.name_folder}/checkpoint_best.pth'
+        os.rena,e(old_file, new_file)
 
     torch.cuda.empty_cache()
 
