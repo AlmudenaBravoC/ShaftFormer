@@ -67,6 +67,7 @@ class transformerModel(nn.Module):
         """
 
         self.model.load_state_dict(torch.load(f'./../results/{self.args.name_folder}/checkpoint.pth', map_location= torch.device('cpu')))
+        self.device = torch.device("cuda:1")
         self.model.to(self.device)
 
         if self.args.model_type == "forecasting": 
@@ -268,8 +269,10 @@ class transformerModel(nn.Module):
             if target != None:
                 ax.set_title(target[i].item())
         fig.suptitle(name, fontsize=16)
+        plt.tight_layout()
         plt.savefig(f'./../results/{self.args.name_folder}/{name}.png')
-
+        plt.close()
+        
     ## JUST IN CASE WE DECIDE TO TRY SEVERAL OF THEM
     def _select_optimizer(self):
         model_optim = optim.Adam(self.model.parameters(), lr=self.args.learning_rate)
