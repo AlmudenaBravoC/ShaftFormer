@@ -12,14 +12,14 @@ args = dotdict()
 
     #model
 args.heads = 3 #number of heads for the transformer
-args.nencoder = 4 #number of layers in the encocer
-args.dropout = 0.48 #dropout
+args.nencoder = 3 #number of layers in the encocer
+args.dropout = 0.1 #dropout
 args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
 args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
-args.learning_rate = 0.00213 
+args.learning_rate = 0.001 
 args.batch_size = 20 #16
-args.sigma = 0.17
+args.sigma = 0.3
 
 args.linear_initialization = 'Non' #We can use ['Non', 'Xavier', 'He', 'Uniform'] --> If uniform, we need to specify the values of a and b
 if args.linear_initialization == 'Uniform':

@@ -15,18 +15,18 @@ import random
 args = dotdict()
 last_loss = np.Inf
 
-for exp in range(30):
+for exp in range(10):
     print(f'\tEXPERIMENT NUMBER __________________________ {exp}')
 
         #model
     args.heads = random.choice([3,6]) #number of heads for the transformer
     args.nencoder = random.choice([3,4]) #number of layers in the encocer
-    args.dropout = round(random.uniform(0.1, 0.5), 2) #dropout
+    args.dropout = round(random.uniform(0.1, 0.3), 2) #dropout
 
     args.train_epochs = 200 #number of epochs to train the model (a maximum number of them)
     args.output_attention = False #if we want to print the attention scores ---- TODAVIA NO ESTÁ HECHO PARA QUE SE PUEDAN IMPRIMIR
 
-    args.learning_rate = round(random.uniform(0.00001, 0.01), 5)
+    args.learning_rate = round(random.uniform(0.001, 0.01), 3)
     args.batch_size = random.choice([16,20,24]) #16
     args.sigma = round(random.uniform(0.1, 0.5), 2)
 
@@ -42,7 +42,7 @@ for exp in range(30):
         args.num_class = 4
 
     args.use_gpu = True if torch.cuda.is_available() else False
-    args.gpu = 0
+    args.gpu = 1
     args.use_multi_gpu = False
 
         #embedding signal 
@@ -93,11 +93,11 @@ for exp in range(30):
     f.write(f'\n{args.heads},{args.nencoder},{args.dropout},{args.learning_rate},{args.batch_size},{args.sigma},{train},{val},{mse}')
     f.close()
 
-    if last_loss >mse:
+    if last_loss > mse:
         last_loss = mse
         old_file = f'./../results/{args.name_folder}/checkpoint.pth'
         new_file = f'./../results/{args.name_folder}/checkpoint_best.pth'
-        os.rena,e(old_file, new_file)
+        os.rename(old_file, new_file)
 
     torch.cuda.empty_cache()
 
