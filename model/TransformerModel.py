@@ -33,7 +33,7 @@ class ShaftFormer(nn.Module):
         ## DECODER
         # decoder_layer = TransformerDecoderLayer(d_model= self.args.outchannels, nhead= self.args.heads , dropout=self.args.dropout, device= device)
         # decoder = TransformerDecoder(decoder_layer, num_layers=self.args.nencoder)
-        decoder = SimpleDecoder(self.args.outchannels, 1, self.args.dropout, device = self.device)
+        # decoder = SimpleDecoder(self.args.outchannels, 1, self.args.dropout, device = self.device)
 
 
         ## MODEL
@@ -64,6 +64,8 @@ class ShaftFormer(nn.Module):
                 nn.init.uniform_(self.linear.weight, a=args.a, b=args.b)
 
             self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, custom_encoder=encoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
+            # self.model = Transformer(d_model = self.args.outchannels, nhead=self.args.heads, 
+            #     custom_encoder=encoder, custom_decoder = decoder, device=device, norm_first=True) #d_model must be divisible by nhead and d_model should be the same as the number of features of the data
             
             #GPU ________________________________________________
             if self.args.use_multi_gpu and self.args.use_gpu:

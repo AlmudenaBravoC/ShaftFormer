@@ -60,7 +60,7 @@ class transformerModel(nn.Module):
             self.model = ShaftFormer(args=args, device=self.device)
 
 
-    def predict(self, future:bool = True):
+    def predict(self, future:bool = True, get_values_signal:bool = False):
         """
         Function that predicts the future values given only src. 
         If the future is true, the model will predict values to future using "auto-regressive decoding"  
@@ -86,16 +86,14 @@ class transformerModel(nn.Module):
                 pred, trues = self.model.forward(x=x, feat=feat, test=future)        
             
             loss = criterion(pred.detach().cpu()[:,:,0], trues.detach().cpu())
-            # for i in range(len(feat)): #only for the first 4 signals
-            #     p = pred[:, i, 0]
-            #     t = trues[:, i]
-            #     # mae, mse, rmse, mape, mspe = metric(p.cpu().detach().numpy(), t.cpu().detach().numpy())
-            #     values.append(MSE(p.cpu().detach().numpy(), t.cpu().detach().numpy()))
             values.append(loss)
 
-            if d: 
+            if d: #to print just the first
                 self.plot_signals(pred, trues, target=class_t, name=f'testResult')
                 d = False
+
+                if get_values_signal:
+                    return pred.detach().cpu(), trues.detach().cpu()
             # print('\tMetrics for signal {} \nmse:{:.3f}, mae:{:.3f}, rmse:{:.3f}, mape:{:.3f}, mspe:{:.3f}'.format(i, mse, mae, rmse, mape, mspe))
         return np.mean(values)
 
@@ -148,7 +146,7 @@ class transformerModel(nn.Module):
         return total_loss
 
     def trainloop(self):
-        #self._save_information() #save the information of the model (arguments) in a txt file
+        self._save_information() #save the information of the model (arguments) in a txt file
         
 
         tr_loader, val_loader = self._get_data()
